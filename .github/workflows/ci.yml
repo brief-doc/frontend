@@ -1,0 +1,29 @@
+name: CI
+on:
+  push:
+    branches: [main] # main 푸시 때만
+  pull_request: # 모든 PR
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+
+  notify-docker:
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger submodule bump
+        run: |
+          curl -sf -X POST \
+            -H "Authorization: Bearer ${{ secrets.DISPATCH_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/<OWNER>/docker/dispatches \
+            -d '{"event_type":"submodule-update","client_payload":{"submodule":"frontend"}}'
