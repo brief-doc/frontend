@@ -71,10 +71,10 @@ export default function StaffDashboard({ userRole, showApproverMenu, showAdminMe
   ];
 
   const [documents, setDocuments] = useState([
-  { id: 1, title: "신규_공모사업_지침", category: "공모사업", date: "2026.06.01", status: "완료" },
-  { id: 2, title: "감사원_처분요구서_2026", category: "감사", date: "2026.05.30", status: "완료" },
-  { id: 3, title: "가명정보_처리_가이드라인", category: "가이드라인", date: "2026.05.28", status: "완료" },
-  { id: 4, title: "개인정보보호_내부지침_개정안", category: "기타", date: "2026.05.25", status: "완료" },
+    { id: 1, title: "신규_공모사업_지침", category: "공모사업", date: "2026.06.01", status: "완료" },
+    { id: 2, title: "감사원_처분요구서_2026", category: "감사", date: "2026.05.30", status: "완료" },
+    { id: 3, title: "가명정보_처리_가이드라인", category: "가이드라인", date: "2026.05.28", status: "완료" },
+    { id: 4, title: "개인정보보호_내부지침_개정안", category: "기타", date: "2026.05.25", status: "완료" },
   ]);
 
   const filteredDrafts = drafts
@@ -100,24 +100,37 @@ export default function StaffDashboard({ userRole, showApproverMenu, showAdminMe
     if (selectedDocId !== null) {
       // 실제 삭제 로직 (State 반영 또는 API 호출)
       setDocuments(documents.filter(doc => doc.id !== selectedDocId));
-      
+
       setIsDeleteModalOpen(false);
       setSelectedDocId(null);
-        
+
       toast.success("문서를 성공적으로 삭제했습니다.", {
-          position: "top-center", // 위치 조절 가능 (top-right, bottom-center 등)
-          duration: 3000,         // 3초 동안 노출
-        }); // 이 alert도 이쁜 토스트나 모달로 대체 가능합니다.
+        position: "top-center", // 위치 조절 가능 (top-right, bottom-center 등)
+        duration: 3000,         // 3초 동안 노출
+      }); // 이 alert도 이쁜 토스트나 모달로 대체 가능합니다.
     }
 
+  };
+
+  // Retrieve the raw string data
+  const rawData = sessionStorage.getItem('user_session');
+
+  // Parse it back into an object if it was JSON
+  const sessionData = rawData ? JSON.parse(rawData) : null;
+
+  const userInfo = {
+    name: sessionData?.name ?? "사용자",
+    email: sessionData?.email ?? "no-reply@example.com",
+    roles: sessionData?.roles ?? ["가상롤"],
+    joinDate: "2025.03.15",
   };
 
   return (
     <div className="min-h-screen bg-background">
       <Toaster /> {/* 토스트 알림을 화면에 렌더링 */}
       <Header
-        userName={userRole === "결재권자" ? "박과장" : "김주무관"}
-        userRole={userRole || "실무 담당자"}
+        userName={userInfo.name}
+        userRole={userInfo.roles}
         notifications={notifications}
         showApproverMenu={showApproverMenu}
         showAdminMenu={showAdminMenu}
@@ -433,10 +446,10 @@ export default function StaffDashboard({ userRole, showApproverMenu, showAdminMe
           </Card>
         </div>
       </main>
-      <ConfirmModal 
-        isOpen={isDeleteModalOpen} 
-        onClose={() => setIsDeleteModalOpen(false)} 
-        onConfirm={handleDeleteConfirm} 
+      <ConfirmModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={handleDeleteConfirm}
         title="문서 삭제"
         description="정말 삭제하시겠습니까?"
         confirmText="삭제"
