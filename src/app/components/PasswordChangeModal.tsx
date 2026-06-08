@@ -11,6 +11,7 @@ import {
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
+import toast, { Toaster } from "react-hot-toast";
 
 interface PasswordChangeModalProps {
   open: boolean;
@@ -27,19 +28,20 @@ export function PasswordChangeModal({ open, onClose }: PasswordChangeModalProps)
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (passwords.new !== passwords.confirm) {
-      alert("비밀번호가 일치하지 않습니다.");
+      toast.error("비밀번호가 일치하지 않습니다.");
       return;
     }
     if (passwords.new.length < 6) {
-      alert("비밀번호는 최소 6자 이상이어야 합니다.");
+      toast.error("비밀번호는 최소 6자 이상이어야 합니다.");
       return;
     }
-    alert("비밀번호가 변경되었습니다.");
+    toast.success("비밀번호가 변경되었습니다.");
     onClose();
   };
 
   return (
     <Dialog open={open} onOpenChange={(open) => !open && onClose()}>
+      <Toaster position="top-center" />
       <DialogContent className="sm:max-w-md" onInteractOutside={(e) => e.preventDefault()}>
         <form onSubmit={handleSubmit}>
           <DialogHeader>
