@@ -6,6 +6,7 @@ import { Label } from "../components/ui/label";
 import { Card, CardContent, CardHeader, CardDescription, CardTitle } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { PasswordChangeModal } from "../components/PasswordChangeModal";
+import { API_BASE_URL } from "../../lib/api";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -28,7 +29,7 @@ export default function Login() {
     setIsLoading(true);
 
     try {
-      const response = await fetch("http://localhost:8000/auth/login", {
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -44,12 +45,63 @@ export default function Login() {
         return;
       }
 
-      if (email === "admin" || email.includes("관리자")) {
-        navigate("/admin/dashboard");
-      } else if (email === "approver" || email.includes("박과장")) {
-        navigate("/staff/dashboard/approver");
+      if ((data.user_name || data.name) && data.email) {
+        sessionStorage.setItem(
+          "user_session",
+          JSON.stringify({
+            user_name: data.user_name ?? data.name,
+            name: data.name,
+            email: data.email,
+            id: data.id,
+            user_rank: data.user_rank,
+          })
+        );
       } else {
+        const meResponse = await fetch(`${API_BASE_URL}/auth/me`, {
+          credentials: "include",
+        });
+        const meData = await meResponse.json().catch(() => ({}));
+        if (meResponse.ok && meData.authenticated) {
+          sessionStorage.setItem(
+            "user_session",
+            JSON.stringify({
+              user_name: meData.user_name ?? meData.name,
+              name: meData.name,
+              email: meData.email,
+              id: meData.id,
+              user_rank: meData.user_rank,
+            })
+          );
+        } else {
+          sessionStorage.removeItem("user_session");
+        }
+      }
+
+      // Retrieve the raw string data
+      const rawData = sessionStorage.getItem('user_session');
+
+      // Parse it back into an object if it was JSON
+      const sessionData = rawData ? JSON.parse(rawData) : null;
+
+      const userInfo = {
+        name: sessionData?.user_name ?? sessionData?.name ?? "사용자",
+        email: sessionData?.email ?? "no-reply@example.com",
+        rank: sessionData?.user_rank ?? 1,
+        department: "개인정보보호과",
+        position: "주무관",
+        roles: ["실무 담당자"],
+        joinDate: "2025.03.15",
+      };
+
+      if (userInfo.rank >= 7) {
+        navigate("/admin/dashboard");
+      } else if (userInfo.rank >= 3) {
+        navigate("/staff/dashboard/approver");
+      } else if (userInfo.rank >= 2) {
         navigate("/staff/dashboard");
+      }
+      else {
+        navigate("/rag-search");
       }
     } catch (error) {
       setErrorMessage("서버에 연결할 수 없습니다. 다시 시도해주세요.");

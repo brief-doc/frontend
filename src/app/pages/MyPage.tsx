@@ -18,9 +18,16 @@ export default function MyPage() {
     confirm: "",
   });
 
+  // Retrieve the raw string data
+  const rawData = sessionStorage.getItem('user_session');
+
+  // Parse it back into an object if it was JSON
+  const sessionData = rawData ? JSON.parse(rawData) : null;
+
   const userInfo = {
-    name: "김주무관",
-    email: "kim@agency.go.kr",
+    name: sessionData?.user_name ?? sessionData?.name ?? "사용자",
+    email: sessionData?.email ?? "no-reply@example.com",
+    rank: sessionData?.user_rank ?? 1,
     department: "개인정보보호과",
     position: "주무관",
     roles: ["실무 담당자"],
@@ -99,6 +106,10 @@ export default function MyPage() {
                   <div>
                     <span className="text-muted-foreground">이메일</span>
                     <p className="text-foreground mt-1">{userInfo.email}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">등급</span>
+                    <p className="text-foreground mt-1">{userInfo.rank}</p>
                   </div>
                   <div>
                     <span className="text-muted-foreground">가입일</span>
