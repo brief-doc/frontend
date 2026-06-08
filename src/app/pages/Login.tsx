@@ -179,13 +179,13 @@ export default function Login() {
         open={showPasswordModal}
         onClose={() => {
           setShowPasswordModal(false);
-          /*if (email === "admin" || email.includes("관리자")) {
+          if (email === "admin" || email.includes("관리자")) {
             navigate("/admin/dashboard");
           } else if (email === "approver" || email.includes("박과장")) {
             navigate("/staff/dashboard/approver");
           } else {
             navigate("/staff/dashboard");
-          }*/
+          }
         }}
       />
     </div>
