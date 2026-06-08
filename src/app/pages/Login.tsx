@@ -3,18 +3,22 @@ import { useNavigate } from "react-router";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
-import { Card, CardContent, CardHeader } from "../components/ui/card";
+import { Card, CardContent, CardHeader, CardDescription, CardTitle } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { PasswordChangeModal } from "../components/PasswordChangeModal";
+import { API_BASE_URL } from "../../lib/api";
 
 export default function Login() {
   const navigate = useNavigate();
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMessage("");
 
     // 초기 비밀번호 체크
     if (password === "000000") {
@@ -22,12 +26,87 @@ export default function Login() {
       return;
     }
 
-    if (username === "admin" || username.includes("관리자")) {
-      navigate("/admin/dashboard");
-    } else if (username === "approver" || username.includes("박과장")) {
-      navigate("/staff/dashboard/approver");
-    } else {
-      navigate("/staff/dashboard");
+    setIsLoading(true);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        setErrorMessage(data.detail || data.message || "로그인에 실패했습니다.");
+        return;
+      }
+
+      if ((data.user_name || data.name) && data.email) {
+        sessionStorage.setItem(
+          "user_session",
+          JSON.stringify({
+            user_name: data.user_name ?? data.name,
+            name: data.name,
+            email: data.email,
+            id: data.id,
+            user_rank: data.user_rank,
+          })
+        );
+      } else {
+        const meResponse = await fetch(`${API_BASE_URL}/auth/me`, {
+          credentials: "include",
+        });
+        const meData = await meResponse.json().catch(() => ({}));
+        if (meResponse.ok && meData.authenticated) {
+          sessionStorage.setItem(
+            "user_session",
+            JSON.stringify({
+              user_name: meData.user_name ?? meData.name,
+              name: meData.name,
+              email: meData.email,
+              id: meData.id,
+              user_rank: meData.user_rank,
+            })
+          );
+        } else {
+          sessionStorage.removeItem("user_session");
+        }
+      }
+
+      // Retrieve the raw string data
+      const rawData = sessionStorage.getItem('user_session');
+
+      // Parse it back into an object if it was JSON
+      const sessionData = rawData ? JSON.parse(rawData) : null;
+
+      const userInfo = {
+        name: sessionData?.user_name ?? sessionData?.name ?? "사용자",
+        email: sessionData?.email ?? "no-reply@example.com",
+        rank: sessionData?.user_rank ?? 1,
+        department: "개인정보보호과",
+        position: "주무관",
+        roles: ["실무 담당자"],
+        joinDate: "2025.03.15",
+      };
+
+      if (userInfo.rank >= 7) {
+        navigate("/admin/dashboard");
+      } else if (userInfo.rank >= 3) {
+        navigate("/staff/dashboard/approver");
+      } else if (userInfo.rank >= 2) {
+        navigate("/staff/dashboard");
+      }
+      else {
+        navigate("/rag-search");
+      }
+    } catch (error) {
+      setErrorMessage("서버에 연결할 수 없습니다. 다시 시도해주세요.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -56,14 +135,15 @@ export default function Login() {
         <CardContent className="space-y-6">
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="username">아이디</Label>
+              <Label htmlFor="email">이메일</Label>
               <Input
-                id="username"
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="아이디를 입력하세요"
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="your@email.com"
                 className="bg-input-background"
+                required
               />
             </div>
 
@@ -76,11 +156,16 @@ export default function Login() {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="비밀번호를 입력하세요"
                 className="bg-input-background"
+                required
               />
             </div>
 
-            <Button type="submit" className="w-full" size="lg">
-              로그인
+            {errorMessage ? (
+              <p className="text-sm text-destructive text-center">{errorMessage}</p>
+            ) : null}
+
+            <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
+              {isLoading ? "로그인 중..." : "로그인"}
             </Button>
           </form>
 
@@ -94,13 +179,13 @@ export default function Login() {
         open={showPasswordModal}
         onClose={() => {
           setShowPasswordModal(false);
-          if (username === "admin" || username.includes("관리자")) {
+          /*if (email === "admin" || email.includes("관리자")) {
             navigate("/admin/dashboard");
-          } else if (username === "approver" || username.includes("박과장")) {
+          } else if (email === "approver" || email.includes("박과장")) {
             navigate("/staff/dashboard/approver");
           } else {
             navigate("/staff/dashboard");
-          }
+          }*/
         }}
       />
     </div>

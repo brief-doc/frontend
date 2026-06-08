@@ -20,9 +20,15 @@ export default function UserActivity() {
   const navigate = useNavigate();
   const { userId } = useParams();
 
+  // Retrieve the raw string data
+  const rawData = sessionStorage.getItem('user_session');
+
+  // Parse it back into an object if it was JSON
+  const sessionData = rawData ? JSON.parse(rawData) : null;
+
   const userData = {
-    name: "김주무관",
-    email: "kim@agency.go.kr",
+    name: sessionData?.user_name ?? sessionData?.name ?? "사용자",
+    email: sessionData?.email ?? "no-reply@example.com",
     roles: ["실무 담당자"],
     joinDate: "2025.03.15",
   };
