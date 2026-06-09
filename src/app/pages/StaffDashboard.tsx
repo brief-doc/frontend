@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect  } from "react";
 import { useNavigate } from "react-router";
 import toast, { Toaster } from "react-hot-toast";
 import { Header } from "../components/Header";
@@ -13,6 +13,8 @@ import { Button } from "../components/ui/button";
 import ConfirmModal from "../components/ui/confirm-modal";
 import { StatusBadge } from "../components/StatusBadge";
 import { FileSearch, FileText, Plus } from "lucide-react";
+import { getDocuments, deleteDocument, toDocItem } from "@/app/api/document";
+import type { DocResponse } from "@/types/document";
 
 interface StaffDashboardProps {
   userRole?: string;
@@ -70,12 +72,15 @@ export default function StaffDashboard({ userRole, showApproverMenu, showAdminMe
     },
   ];
 
-  const [documents, setDocuments] = useState([
-    { id: 1, title: "신규_공모사업_지침", category: "공모사업", date: "2026.06.01", status: "완료" },
-    { id: 2, title: "감사원_처분요구서_2026", category: "감사", date: "2026.05.30", status: "완료" },
-    { id: 3, title: "가명정보_처리_가이드라인", category: "가이드라인", date: "2026.05.28", status: "완료" },
-    { id: 4, title: "개인정보보호_내부지침_개정안", category: "기타", date: "2026.05.25", status: "완료" },
-  ]);
+  const [documents, setDocuments] =  useState<DocItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getDocuments({ limit: 50 })
+      .then((data) => setDocuments(data.map(toDocItem)))
+      .catch(() => toast.error("문서 목록을 불러오지 못했습니다."))
+      .finally(() => setLoading(false));
+  }, []);
 
   const filteredDrafts = drafts
     .filter((d) => statusFilter === "all" || d.status === statusFilter)
