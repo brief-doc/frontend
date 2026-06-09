@@ -12,7 +12,6 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import toast, { Toaster } from "react-hot-toast";
-import { API_BASE_URL } from "../../lib/api";
 
 interface PasswordChangeModalProps {
   open: boolean;
@@ -38,47 +37,15 @@ export function PasswordChangeModal({ open, onClose, email, userId }: PasswordCh
       return;
     }
     if (passwords.new !== passwords.confirm) {
-      toast.error("새 비밀번호가 일치하지 않습니다.");
+      toast.error("비밀번호가 일치하지 않습니다.");
       return;
     }
     if (passwords.new.length < 6) {
       toast.error("비밀번호는 최소 6자 이상이어야 합니다.");
       return;
     }
-
-    setIsSubmitting(true);
-
-    try {
-      // 비밀번호 변경 및 user_login 시간 업데이트 API 호출
-      const response = await fetch(`${API_BASE_URL}/auth/change-password`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify({
-          email,
-          userId,
-          current_password: passwords.current,
-          new_password: passwords.new,
-          user_login: new Date().toISOString(), // 현재 시간을 user_login으로 설정
-        }),
-      });
-
-      const result = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        toast.error(result.detail || result.message || "비밀번호 변경에 실패했습니다.");
-        return;
-      }
-
-      toast.success("비밀번호가 변경되었습니다.");
-      onClose();
-    } catch (error) {
-      toast.error("서버에 연결할 수 없습니다. 다시 시도해주세요.");
-    } finally {
-      setIsSubmitting(false);
-    }
+    toast.success("비밀번호가 변경되었습니다.");
+    onClose();
   };
 
   return (

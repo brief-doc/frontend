@@ -185,8 +185,7 @@ export default function Login() {
         userId={userData?.id}
         onClose={() => {
           setShowPasswordModal(false);
-          setUserData(null);
-          if (email === "testa@gmail.com" || email.includes("관리자")) {
+          if (email === "admin" || email.includes("관리자")) {
             navigate("/admin/dashboard");
           } else if (email === "approver" || email.includes("박과장")) {
             navigate("/staff/dashboard/approver");
