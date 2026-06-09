@@ -15,17 +15,13 @@ export default function Login() {
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [userData, setUserData] = useState<any>(null);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage("");
 
-    // 초기 비밀번호 체크
-    if (password === "000000") {
-      setShowPasswordModal(true);
-      return;
-    }
-
+    sessionStorage.removeItem("user_session");
     setIsLoading(true);
 
     try {
@@ -45,7 +41,15 @@ export default function Login() {
         return;
       }
 
-      if ((data.user_name || data.name) && data.email) {
+      // 초기 비밀번호로 로그인할 때 user_login이 null인지 확인
+      if (data.user_login === null) {
+        setUserData(data);
+        console.log("stupid ", data.user_login);
+        setShowPasswordModal(true);
+        return;
+      }
+
+      if (data.name && data.email) {
         sessionStorage.setItem(
           "user_session",
           JSON.stringify({
@@ -177,15 +181,18 @@ export default function Login() {
 
       <PasswordChangeModal
         open={showPasswordModal}
+        email={email}
+        userId={userData?.id}
         onClose={() => {
           setShowPasswordModal(false);
-          /*if (email === "admin" || email.includes("관리자")) {
+          setUserData(null);
+          if (email === "testa@gmail.com" || email.includes("관리자")) {
             navigate("/admin/dashboard");
           } else if (email === "approver" || email.includes("박과장")) {
             navigate("/staff/dashboard/approver");
           } else {
             navigate("/staff/dashboard");
-          }*/
+          }
         }}
       />
     </div>

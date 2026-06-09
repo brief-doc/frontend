@@ -89,3 +89,53 @@ export async function logoutAPI(): Promise<void> {
         credentials: "include", // 쿠키 전송을 위해 필수
     });
 }
+
+export interface UserListItem {
+    id: number;
+    email: string;
+    name: string;
+    user_rank: number;
+    user_login: string | null;
+    user_create: string | null;
+}
+
+export async function getUsersAPI(): Promise<UserListItem[]> {
+    const response = await fetch(`${API_BASE_URL}/auth/users`, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+    });
+
+    if (!response.ok) {
+        const error = await response.json().catch(() => null);
+        throw new Error(error?.detail || "사용자 목록을 불러오지 못했습니다.");
+    }
+
+    return response.json();
+}
+
+export async function resetUserPasswordAPI(userId: number): Promise<void> {
+    const response = await fetch(`${API_BASE_URL}/auth/users/${userId}/reset-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+    });
+
+    if (!response.ok) {
+        const error = await response.json().catch(() => null);
+        throw new Error(error?.detail || "암호 초기화에 실패했습니다.");
+    }
+}
+
+export async function forceLogoutUserAPI(userId: number): Promise<void> {
+    const response = await fetch(`${API_BASE_URL}/auth/users/${userId}/force-logout`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+    });
+
+    if (!response.ok) {
+        const error = await response.json().catch(() => null);
+        throw new Error(error?.detail || "로그아웃 처리에 실패했습니다.");
+    }
+}

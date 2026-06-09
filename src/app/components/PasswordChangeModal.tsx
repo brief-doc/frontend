@@ -11,35 +11,79 @@ import {
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
+import toast, { Toaster } from "react-hot-toast";
+import { API_BASE_URL } from "../../lib/api";
 
 interface PasswordChangeModalProps {
   open: boolean;
   onClose: () => void;
+  email?: string;
+  userId?: string | number;
 }
 
-export function PasswordChangeModal({ open, onClose }: PasswordChangeModalProps) {
+export function PasswordChangeModal({ open, onClose, email, userId }: PasswordChangeModalProps) {
   const navigate = useNavigate();
   const [passwords, setPasswords] = useState({
+    current: "",
     new: "",
     confirm: "",
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!passwords.current) {
+      toast.error("현재 비밀번호를 입력해주세요.");
+      return;
+    }
     if (passwords.new !== passwords.confirm) {
-      alert("비밀번호가 일치하지 않습니다.");
+      toast.error("새 비밀번호가 일치하지 않습니다.");
       return;
     }
     if (passwords.new.length < 6) {
-      alert("비밀번호는 최소 6자 이상이어야 합니다.");
+      toast.error("비밀번호는 최소 6자 이상이어야 합니다.");
       return;
     }
-    alert("비밀번호가 변경되었습니다.");
-    onClose();
+
+    setIsSubmitting(true);
+
+    try {
+      // 비밀번호 변경 및 user_login 시간 업데이트 API 호출
+      const response = await fetch(`${API_BASE_URL}/auth/change-password`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          email,
+          userId,
+          current_password: passwords.current,
+          new_password: passwords.new,
+          user_login: new Date().toISOString(), // 현재 시간을 user_login으로 설정
+        }),
+      });
+
+      const result = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        toast.error(result.detail || result.message || "비밀번호 변경에 실패했습니다.");
+        return;
+      }
+
+      toast.success("비밀번호가 변경되었습니다.");
+      onClose();
+    } catch (error) {
+      toast.error("서버에 연결할 수 없습니다. 다시 시도해주세요.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <Dialog open={open} onOpenChange={(open) => !open && onClose()}>
+      <Toaster position="top-center" />
       <DialogContent className="sm:max-w-md" onInteractOutside={(e) => e.preventDefault()}>
         <form onSubmit={handleSubmit}>
           <DialogHeader>
@@ -50,10 +94,17 @@ export function PasswordChangeModal({ open, onClose }: PasswordChangeModalProps)
           </DialogHeader>
 
           <div className="space-y-4 py-4">
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-              <p className="text-sm text-amber-900">
-                현재 비밀번호: <code className="px-1.5 py-0.5 bg-amber-100 rounded font-mono">000000</code>
-              </p>
+            <div className="space-y-2">
+              <Label htmlFor="current-password">현재 비밀번호</Label>
+              <Input
+                id="current-password"
+                type="password"
+                value={passwords.current}
+                onChange={(e) => setPasswords({ ...passwords, current: e.target.value })}
+                placeholder="현재 비밀번호 입력"
+                className="bg-input-background"
+                required
+              />
             </div>
 
             <div className="space-y-2">
@@ -84,8 +135,8 @@ export function PasswordChangeModal({ open, onClose }: PasswordChangeModalProps)
           </div>
 
           <DialogFooter>
-            <Button type="submit" className="w-full">
-              비밀번호 변경
+            <Button type="submit" className="w-full" disabled={isSubmitting}>
+              {isSubmitting ? "변경 중..." : "비밀번호 변경"}
             </Button>
           </DialogFooter>
         </form>

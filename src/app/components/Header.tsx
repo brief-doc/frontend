@@ -3,6 +3,7 @@ import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { NotificationDropdown } from "./NotificationDropdown";
 import { useNavigate } from "react-router";
+import { logoutAPI } from "../api/auth";
 
 interface HeaderProps {
   userName?: string;
@@ -31,6 +32,17 @@ export function Header({
 }: HeaderProps) {
   const navigate = useNavigate();
   const notificationCount = notifications.filter((n) => n.unread).length;
+
+  const handleLogout = async () => {
+    try {
+      await logoutAPI();
+    } catch (error) {
+      console.error("Logout failed", error);
+    } finally {
+      sessionStorage.removeItem("user_session");
+      navigate("/", { replace: true });
+    }
+  };
 
   return (
     <header className="bg-white border-b border-border px-6 py-4 flex items-center justify-between">
@@ -103,7 +115,7 @@ export function Header({
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => navigate("/")}
+            onClick={handleLogout}
             className="text-muted-foreground hover:text-foreground"
           >
             <LogOut className="size-5" />
