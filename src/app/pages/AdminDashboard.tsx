@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { AdminLayout } from "../components/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
@@ -5,15 +6,62 @@ import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { Users, FileText, MessageSquare, Cpu, TrendingUp } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
+import toast from "react-hot-toast";
+import { getMeAPI, getUsersAPI, resetUserPasswordAPI, forceLogoutUserAPI } from "../api/auth";
+
+interface AdminUser {
+  id: number;
+  name: string;
+  email: string;
+  user_rank: number;
+  user_login: string | null;
+  user_create: string | null;
+}
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [pendingActionId, setPendingActionId] = useState<number | null>(null);
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+
+  const loadUsers = async () => {
+    setLoadingUsers(true);
+    try {
+      const userList = await getUsersAPI();
+      setUsers(userList);
+    } catch (error: any) {
+      toast.error(error?.message || "사용자 목록을 불러오지 못했습니다.");
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  useEffect(() => {
+    const checkAdminAccess = async () => {
+      const meData = await getMeAPI();
+      if (meData?.user_rank >= 7) {
+        setIsAdmin(true);
+        await loadUsers();
+      } else {
+        setIsAdmin(false);
+      }
+    };
+
+    checkAdminAccess();
+  }, [navigate]);
+
+  useEffect(() => {
+    if (isAdmin === false) {
+      navigate("/", { replace: true });
+    }
+  }, [isAdmin, navigate]);
 
   const stats = [
     {
       icon: Users,
       label: "전체 사용자 수",
-      value: "47",
+      value: loadingUsers ? "..." : users.length.toString(),
       trend: "+3",
       trendLabel: "이번 달",
     },
@@ -40,48 +88,37 @@ export default function AdminDashboard() {
     },
   ];
 
-  const users = [
-    {
-      id: 1,
-      name: "김주무관",
-      email: "kim@agency.go.kr",
-      roles: ["실무 담당자"],
-      joinDate: "2025.03.15",
-      lastActive: "2026.06.02 14:32",
-    },
-    {
-      id: 2,
-      name: "박과장",
-      email: "park@agency.go.kr",
-      roles: ["결재권자", "관리자"],
-      joinDate: "2024.01.10",
-      lastActive: "2026.06.02 15:10",
-    },
-    {
-      id: 3,
-      name: "이대리",
-      email: "lee@agency.go.kr",
-      roles: ["실무 담당자"],
-      joinDate: "2025.06.20",
-      lastActive: "2026.06.01 16:45",
-    },
-    {
-      id: 4,
-      name: "최팀장",
-      email: "choi@agency.go.kr",
-      roles: ["결재권자"],
-      joinDate: "2023.09.05",
-      lastActive: "2026.06.02 09:15",
-    },
-    {
-      id: 5,
-      name: "정주임",
-      email: "jung@agency.go.kr",
-      roles: ["실무 담당자"],
-      joinDate: "2025.11.12",
-      lastActive: "2026.05.31 17:20",
-    },
-  ];
+  const getRolesFromRank = (rank: number) => {
+    if (rank >= 7) return ["결재권자", "관리자"];
+    if (rank >= 3) return ["결재권자"];
+    return ["실무 담당자"];
+  };
+
+  const handleResetPassword = async (userId: number) => {
+    setPendingActionId(userId);
+    try {
+      await resetUserPasswordAPI(userId);
+      toast.success("암호가 초기화되었습니다.");
+      await loadUsers();
+    } catch (error: any) {
+      toast.error(error?.message || "암호 초기화에 실패했습니다.");
+    } finally {
+      setPendingActionId(null);
+    }
+  };
+
+  const handleForceLogout = async (userId: number) => {
+    setPendingActionId(userId);
+    try {
+      await forceLogoutUserAPI(userId);
+      toast.success("사용자가 로그아웃되었습니다.");
+      await loadUsers();
+    } catch (error: any) {
+      toast.error(error?.message || "로그아웃 처리에 실패했습니다.");
+    } finally {
+      setPendingActionId(null);
+    }
+  };
 
   const roleColors: Record<string, string> = {
     "실무 담당자": "bg-[var(--status-info)] text-white border-transparent",
@@ -95,6 +132,18 @@ export default function AdminDashboard() {
     { name: "가이드라인", value: 445, color: "#2B6E72" },
     { name: "기타", value: 366, color: "#3B82F6" },
   ];
+
+  if (isAdmin === null) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <p className="text-base text-muted-foreground">관리자 인증 중...</p>
+      </div>
+    );
+  }
+
+  if (isAdmin === false) {
+    return null;
+  }
 
   return (
     <AdminLayout>
@@ -190,41 +239,80 @@ export default function AdminDashboard() {
                     <th className="px-4 py-3 text-left text-sm font-medium text-foreground">
                       최근 활동
                     </th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-foreground">
+                      작업
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {users.map((user) => (
-                    <tr
-                      key={user.id}
-                      className="border-b border-border hover:bg-muted/30 cursor-pointer transition-colors"
-                      onClick={() => navigate(`/admin/users/${user.id}/activity`)}
-                    >
-                      <td className="px-4 py-3 text-sm font-medium text-foreground">
-                        {user.name}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-muted-foreground">
-                        {user.email}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex flex-wrap gap-1">
-                          {user.roles.map((role, idx) => (
-                            <Badge
-                              key={idx}
-                              className={roleColors[role]}
+                  {users.map((user) => {
+                    const roles = getRolesFromRank(user.user_rank);
+                    const joinDate = user.user_create
+                      ? new Date(user.user_create).toLocaleDateString("ko-KR")
+                      : "-";
+                    const lastActive = user.user_login
+                      ? new Date(user.user_login).toLocaleString("ko-KR")
+                      : "접속 기록 없음";
+
+                    return (
+                      <tr
+                        key={user.id}
+                        className="border-b border-border hover:bg-muted/30 cursor-pointer transition-colors"
+                        onClick={() => navigate(`/admin/users/${user.id}/activity`)}
+                      >
+                        <td className="px-4 py-3 text-sm font-medium text-foreground">
+                          {user.name}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-muted-foreground">
+                          {user.email}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex flex-wrap gap-1">
+                            {roles.map((role, idx) => (
+                              <Badge
+                                key={idx}
+                                className={roleColors[role]}
+                              >
+                                {role}
+                              </Badge>
+                            ))}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-muted-foreground">
+                          {joinDate}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-muted-foreground">
+                          {lastActive}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-muted-foreground">
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={pendingActionId === user.id}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleResetPassword(user.id);
+                              }}
                             >
-                              {role}
-                            </Badge>
-                          ))}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-muted-foreground">
-                        {user.joinDate}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-muted-foreground">
-                        {user.lastActive}
-                      </td>
-                    </tr>
-                  ))}
+                              암호 리셋
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              disabled={pendingActionId === user.id}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleForceLogout(user.id);
+                              }}
+                            >
+                              로그아웃
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

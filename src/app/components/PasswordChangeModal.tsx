@@ -16,17 +16,26 @@ import toast, { Toaster } from "react-hot-toast";
 interface PasswordChangeModalProps {
   open: boolean;
   onClose: () => void;
+  email?: string;
+  userId?: string | number;
 }
 
-export function PasswordChangeModal({ open, onClose }: PasswordChangeModalProps) {
+export function PasswordChangeModal({ open, onClose, email, userId }: PasswordChangeModalProps) {
   const navigate = useNavigate();
   const [passwords, setPasswords] = useState({
+    current: "",
     new: "",
     confirm: "",
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!passwords.current) {
+      toast.error("현재 비밀번호를 입력해주세요.");
+      return;
+    }
     if (passwords.new !== passwords.confirm) {
       toast.error("비밀번호가 일치하지 않습니다.");
       return;
@@ -52,10 +61,17 @@ export function PasswordChangeModal({ open, onClose }: PasswordChangeModalProps)
           </DialogHeader>
 
           <div className="space-y-4 py-4">
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-              <p className="text-sm text-amber-900">
-                현재 비밀번호: <code className="px-1.5 py-0.5 bg-amber-100 rounded font-mono">000000</code>
-              </p>
+            <div className="space-y-2">
+              <Label htmlFor="current-password">현재 비밀번호</Label>
+              <Input
+                id="current-password"
+                type="password"
+                value={passwords.current}
+                onChange={(e) => setPasswords({ ...passwords, current: e.target.value })}
+                placeholder="현재 비밀번호 입력"
+                className="bg-input-background"
+                required
+              />
             </div>
 
             <div className="space-y-2">
@@ -86,8 +102,8 @@ export function PasswordChangeModal({ open, onClose }: PasswordChangeModalProps)
           </div>
 
           <DialogFooter>
-            <Button type="submit" className="w-full">
-              비밀번호 변경
+            <Button type="submit" className="w-full" disabled={isSubmitting}>
+              {isSubmitting ? "변경 중..." : "비밀번호 변경"}
             </Button>
           </DialogFooter>
         </form>

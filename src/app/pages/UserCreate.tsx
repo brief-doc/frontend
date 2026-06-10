@@ -8,6 +8,8 @@ import { Label } from "../components/ui/label";
 import { Checkbox } from "../components/ui/checkbox";
 import { ArrowLeft } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
+import { signupAPI } from "../api/auth";
+
 export default function UserCreate() {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
@@ -17,6 +19,7 @@ export default function UserCreate() {
     position: "",
     roles: [] as string[],
   });
+  const [isLoading, setIsLoading] = useState(false);
 
   const departments = ["기획조정실", "정보화담당관", "개인정보보호과", "데이터정책과", "감사담당관"];
   const positions = ["주무관", "사무관", "서기관", "과장", "팀장", "국장"];
@@ -36,14 +39,29 @@ export default function UserCreate() {
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name || !formData.email || formData.roles.length === 0) {
+    if (
+      !formData.name ||
+      !formData.email ||
+      !formData.department ||
+      !formData.position ||
+      formData.roles.length === 0
+    ) {
       toast.error("모든 필드를 입력해주세요.");
       return;
     }
-    toast.success("계정이 생성되었습니다.");
-    navigate("/admin/dashboard");
+
+    setIsLoading(true);
+    try {
+      await signupAPI(formData.email, "000000", formData.name);
+      toast.success("계정이 생성되었습니다.");
+      navigate("/admin/dashboard");
+    } catch (error: any) {
+      toast.error(error?.message || "계정 생성에 실패했습니다.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -175,8 +193,8 @@ export default function UserCreate() {
                 >
                   취소
                 </Button>
-                <Button type="submit" className="flex-1">
-                  계정 생성
+                <Button type="submit" className="flex-1" disabled={isLoading}>
+                  {isLoading ? "생성중..." : "계정 생성"}
                 </Button>
               </div>
             </form>
