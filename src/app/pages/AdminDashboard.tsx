@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react"; 
 import { useNavigate } from "react-router";
 import { AdminLayout } from "../components/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
@@ -13,7 +13,7 @@ interface AdminUser {
   id: number;
   name: string;
   email: string;
-  user_rank: number;
+  roles: string[];
   user_login: string | null;
   user_create: string | null;
 }
@@ -40,7 +40,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     const checkAdminAccess = async () => {
       const meData = await getMeAPI();
-      if (meData?.user_rank >= 7) {
+      if (meData?.roles?.includes("관리자")) {
         setIsAdmin(true);
         await loadUsers();
       } else {
@@ -87,12 +87,6 @@ export default function AdminDashboard() {
       trendLabel: "이번 주",
     },
   ];
-
-  const getRolesFromRank = (rank: number) => {
-    if (rank >= 7) return ["결재권자", "관리자"];
-    if (rank >= 3) return ["결재권자"];
-    return ["실무 담당자"];
-  };
 
   const handleResetPassword = async (userId: number) => {
     setPendingActionId(userId);
@@ -246,7 +240,7 @@ export default function AdminDashboard() {
                 </thead>
                 <tbody>
                   {users.map((user) => {
-                    const roles = getRolesFromRank(user.user_rank);
+                    const roles =  user.roles;
                     const joinDate = user.user_create
                       ? new Date(user.user_create).toLocaleDateString("ko-KR")
                       : "-";

@@ -5,14 +5,17 @@ export interface LoginRequest {
     password: string;
 }
 
-export async function signupAPI(email: string, password: string, name: string) {
+
+export async function signupAPI(email: string, password: string, name: string, roles?: string[]) {
     const response = await fetch(`${API_BASE_URL}/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
             email,
             password,
-            name
+            name,
+            roles
         }),
     });
 
@@ -90,11 +93,42 @@ export async function logoutAPI(): Promise<void> {
     });
 }
 
+export async function changePasswordAPI(
+    email: string,
+    userId: number,
+    currentPassword: string,
+    newPassword: string
+  ) {
+    const response = await fetch(`${API_BASE_URL}/auth/change-password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        email,
+        userId,                      
+        current_password: currentPassword,
+        new_password: newPassword,
+      }),
+    });
+  
+    if (!response.ok) {
+      let message = "비밀번호 변경에 실패했습니다.";
+      try {
+        const err = await response.json();
+        if (typeof err.detail === "string") message = err.detail; // 예: "현재 비밀번호가 올바르지 않습니다"
+      } catch {
+        /* ignore */
+      }
+      throw new Error(message);
+    }
+    return response.json();
+  }
+
 export interface UserListItem {
     id: number;
     email: string;
     name: string;
-    user_rank: number;
+    roles: string[];
     user_login: string | null;
     user_create: string | null;
 }
@@ -114,7 +148,8 @@ export async function getUsersAPI(): Promise<UserListItem[]> {
     return response.json();
 }
 
-export async function resetUserPasswordAPI(userId: number): Promise<void> {
+  // 회원 비밀번호 초기화
+  export async function resetUserPasswordAPI(userId: number): Promise<void> {
     const response = await fetch(`${API_BASE_URL}/auth/users/${userId}/reset-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

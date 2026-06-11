@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState, useEffect } from "react"; 
 import { useNavigate } from "react-router";
 import toast, { Toaster } from "react-hot-toast";
 import { Header } from "../components/Header";
@@ -13,7 +13,7 @@ import { Button } from "../components/ui/button";
 import ConfirmModal from "../components/ui/confirm-modal";
 import { StatusBadge } from "../components/StatusBadge";
 import { FileSearch, FileText, Plus } from "lucide-react";
-
+import { ArrowLeft, User } from "lucide-react";
 interface StaffDashboardProps {
   userRole?: string;
   showApproverMenu?: boolean;
@@ -24,6 +24,7 @@ export default function StaffDashboard({ userRole, showApproverMenu, showAdminMe
   const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState("all");
   const [sortOrder, setSortOrder] = useState("latest");
+
 
   const drafts = [
     {

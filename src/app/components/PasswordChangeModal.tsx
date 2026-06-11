@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router";
 import {
   Dialog,
@@ -12,6 +12,7 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import toast, { Toaster } from "react-hot-toast";
+import { changePasswordAPI } from "../api/auth";
 
 interface PasswordChangeModalProps {
   open: boolean;
@@ -21,7 +22,6 @@ interface PasswordChangeModalProps {
 }
 
 export function PasswordChangeModal({ open, onClose, email, userId }: PasswordChangeModalProps) {
-  const navigate = useNavigate();
   const [passwords, setPasswords] = useState({
     current: "",
     new: "",
@@ -44,8 +44,27 @@ export function PasswordChangeModal({ open, onClose, email, userId }: PasswordCh
       toast.error("비밀번호는 최소 6자 이상이어야 합니다.");
       return;
     }
-    toast.success("비밀번호가 변경되었습니다.");
-    onClose();
+    if (!email || userId === undefined || userId === null) {
+      toast.error("사용자 정보를 찾을 수 없습니다. 다시 로그인해주세요.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await changePasswordAPI(
+        email,
+        Number(userId),
+        passwords.current,
+        passwords.new
+      );
+      toast.success("비밀번호가 변경되었습니다.");
+      setPasswords({ current: "", new: "", confirm: "" });
+      onClose();
+    } catch (err: any) {
+      toast.error(err?.message || "비밀번호 변경에 실패했습니다.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
