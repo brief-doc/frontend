@@ -15,14 +15,14 @@ export default function UserCreate() {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
-    department: "",
-    position: "",
+    //department: "",
+    //position: "",
     roles: [] as string[],
   });
   const [isLoading, setIsLoading] = useState(false);
 
-  const departments = ["기획조정실", "정보화담당관", "개인정보보호과", "데이터정책과", "감사담당관"];
-  const positions = ["주무관", "사무관", "서기관", "과장", "팀장", "국장"];
+  //const departments = ["기획조정실", "정보화담당관", "개인정보보호과", "데이터정책과", "감사담당관"];
+  //const positions = ["주무관", "사무관", "서기관", "과장", "팀장", "국장"];
 
   const availableRoles = [
     { id: "staff", label: "실무 담당자" },
@@ -44,8 +44,8 @@ export default function UserCreate() {
     if (
       !formData.name ||
       !formData.email ||
-      !formData.department ||
-      !formData.position ||
+      //!formData.department ||
+      //!formData.position ||
       formData.roles.length === 0
     ) {
       toast.error("모든 필드를 입력해주세요.");
@@ -54,7 +54,7 @@ export default function UserCreate() {
 
     setIsLoading(true);
     try {
-      await signupAPI(formData.email, "000000", formData.name);
+      await signupAPI(formData.email, formData.name, formData.roles);
       toast.success("계정이 생성되었습니다.");
       navigate("/admin/dashboard");
     } catch (error: any) {
@@ -112,7 +112,7 @@ export default function UserCreate() {
                   className="bg-input-background"
                 />
               </div>
-
+              {/* 부서와 직급 우선 주석 처리}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="department">부서</Label>
@@ -151,7 +151,7 @@ export default function UserCreate() {
                     ))}
                   </select>
                 </div>
-              </div>
+              </div>*/}
 
               <div className="space-y-3">
                 <Label>권한 설정</Label>

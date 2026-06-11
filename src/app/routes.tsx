@@ -81,4 +81,8 @@ export const router = createBrowserRouter([
     path: "/admin/queries",
     Component: AdminDashboard,
   },
+  {
+    path: "/user/activity",
+    Component: UserActivity,
+  },
 ]);

@@ -1,4 +1,4 @@
-import React, { useState } from "react"; 
+import React, { useState } from "react";
 import { useNavigate } from "react-router";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardDescription, CardTitle } from "../co
 import { Badge } from "../components/ui/badge";
 import { PasswordChangeModal } from "../components/PasswordChangeModal";
 import { API_BASE_URL } from "../../lib/api";
-import {getMeAPI} from "../api/auth";
+import { getMeAPI } from "../api/auth";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -45,7 +45,6 @@ export default function Login() {
       // 초기 비밀번호로 로그인할 때 user_login이 null인지 확인
       if (data.user_login === null) {
         setUserData(data);
-        console.log("stupid ", data.user_login);
         setShowPasswordModal(true);
         return;
       }
@@ -89,7 +88,7 @@ export default function Login() {
       const sessionData = rawData ? JSON.parse(rawData) : null;
 
       const roles: string[] = sessionData?.roles ?? [];
-      
+
       if (roles.includes("관리자")) {
         navigate("/admin/dashboard");
       } else if (roles.includes("결재권자")) {
@@ -100,7 +99,7 @@ export default function Login() {
         navigate("/rag-search");
       }
     } catch (error) {
-      console.error("login error:", error); 
+      console.error("login error:", error);
       setErrorMessage("서버에 연결할 수 없습니다. 다시 시도해주세요.");
     } finally {
       setIsLoading(false);

@@ -73,9 +73,9 @@ export function PasswordChangeModal({ open, onClose, email, userId }: PasswordCh
       <DialogContent className="sm:max-w-md" onInteractOutside={(e) => e.preventDefault()}>
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>초기 비밀번호 변경</DialogTitle>
+            <DialogTitle>비밀번호 변경</DialogTitle>
             <DialogDescription>
-              보안을 위해 초기 비밀번호를 변경해주세요.
+              보안을 위해 비밀번호를 변경해주세요.
             </DialogDescription>
           </DialogHeader>
 
