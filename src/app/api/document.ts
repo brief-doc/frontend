@@ -1,4 +1,4 @@
-import type { DocResponse, DocItem, DocDetailItem, DocDetailResponse } from "@/types/document";
+import type { DocResponse, DocItem, DocDetailItem, DocDetailResponse, DocUpdateParams } from "@/types/document";
 import  api from "../../lib/api";
 
 // ── API 호출 ─────────────────────────────
@@ -46,6 +46,30 @@ export async function deletedDocument(docId: number): Promise<Boolean> {
   }
 }
 
+/**
+ * 문서 수정 API
+ * @param docId 수정할 문서의 ID
+ * @param params 수정할 데이터 객체 (선택적)
+ */
+export async function updateDocument(
+  docId: number, 
+  params: DocUpdateParams
+): Promise<boolean> {
+  try {
+    const response = await api.patch(`/documents/${docId}`, {
+      file_name: params.title,
+      category: params.category,
+      content_sum: params.summary
+    });
+
+    if (response.status === 200) {
+      return true;
+    }
+    return false;
+  } catch (error) {
+    return false;
+  }
+}
 
 // ── 변환 헬퍼 ─────────────────────────────
 function formatDate(iso: string | null): string {

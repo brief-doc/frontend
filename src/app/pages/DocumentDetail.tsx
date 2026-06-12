@@ -1,22 +1,13 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useParams } from "react-router-dom"; 
+import { useNavigate, useParams } from "react-router-dom";
 import { Header } from "../components/Header";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";
+import ConfirmModal from "../components/ui/confirm-modal";
 import { Badge } from "../components/ui/badge";
 import toast, { Toaster } from "react-hot-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "../components/ui/alert-dialog";
 import {
   Select,
   SelectContent,
@@ -31,24 +22,26 @@ import {
   DropdownMenuTrigger,
 } from "../components/ui/dropdown-menu";
 import { ArrowLeft, Edit, Trash2, Download } from "lucide-react";
-import { getDocumentDetail } from "../api/document";
+import { getDocumentDetail, deletedDocument, updateDocument } from "../api/document";
 import type { DocDetailItem } from "@/types/document";
   
 export default function DocumentDetail() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
 
+  // 1. 모달 및 화면 제어 관련 State
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [document, setDocument] = useState<DocDetailItem | null>(null);
 
+  // 2. 문서 데이터 입력 폼 State
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("");
   const [summary, setSummary] = useState("");
   const [content, setContent] = useState("");
 
-  // 1. 페이지 진입 시 데이터 단건 조회
+  // 3. 페이지 진입 시 데이터 단건 조회
   useEffect(() => {
     if (!id) return;
     setLoading(true);
@@ -71,47 +64,109 @@ export default function DocumentDetail() {
       });
   }, [id]);
 
-  // 2. 수정 취소 핸들러 (기존 상세 정보로 롤백)
+  const handleOpenDeleteModal = () => {
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!id) return;
+
+    try {
+      const isSuccess = await deletedDocument(Number(id));
+      
+      if (isSuccess) {
+        setIsDeleteModalOpen(false);
+        toast.success("문서를 성공적으로 삭제했습니다.", {
+          position: "top-center", 
+          duration: 3000,         
+        }); 
+        navigate("/staff/dashboard");
+      } else {
+        toast.error("삭제에 실패했습니다. 권한이 없거나 이미 없는 데이터일 수 있습니다.", {
+          position: "top-center",
+          duration: 3000,
+        });
+      }
+    } catch (error) {
+      console.error("삭제 중 오류 발생:", error);
+      toast.error("서버와 통신 중 오류가 발생했습니다.");
+    }
+  };
+
   const handleCancel = () => {
     if (document) {
       setTitle(document.title);
       setCategory(document.category);
       setSummary(document.summary);
-      setContent(document.content);
     }
     setIsEditing(false);
   };
 
-  // 3. 수정 저장 핸들러
   const handleSave = async () => {
+    if (!id) return;
+
     try {
-      // TODO: 필요 시 백엔드 수정 API 호출 연동 (ex: await updateDocument(Number(id), { title, category, summary }))
-      setIsEditing(false);
-      
-      // 로컬 state 업데이트 반영
-      if (document) {
-        setDocument({ ...document, title, category, summary, content });
+      const isSuccess = await updateDocument(Number(id), {
+        title,
+        category,
+        summary,
+      });
+
+      if (isSuccess) {
+        setIsEditing(false);
+        
+        if (document) {
+          setDocument({ ...document, title, category, summary, content });
+        }
+        toast.success("문서가 수정되었습니다.");
+      } else {
+        toast.error("문서 수정에 실패했습니다. 데이터를 확인해 주세요.");
       }
-      toast.success("문서가 수정되었습니다.");
     } catch (error) {
-      toast.error("문서 수정에 실패했습니다.");
+      toast.error("서버와 통신 중 오류가 발생했습니다.");
     }
   };
 
-  // 4. 삭제 핸들러
-  const handleDelete = async () => {
-    try {
-      // TODO: 필요 시 백엔드 삭제 API 호출 연동 (ex: await deleteDocument(Number(id)))
-      toast.error("문서가 삭제되었습니다.");
-      navigate("/staff/dashboard");
-    } catch (error) {
-      toast.error("문서 삭제에 실패했습니다.");
+  const handleDownloadTxt = () => {
+    const blob = new Blob([summary], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = window.document.createElement("a");
+    a.href = url;
+    a.download = `${title}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadPdf = () => {
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      toast.error("팝업이 차단되었습니다. 팝업 허용 후 다시 시도해 주세요.");
+      return;
     }
+    const escaped = summary.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    printWindow.document.write(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>${title}</title>
+  <style>
+    body { font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif; padding: 48px; line-height: 1.8; font-size: 14px; color: #333; }
+    h1 { font-size: 20px; margin-bottom: 24px; padding-bottom: 12px; border-bottom: 1px solid #ddd; }
+    pre { white-space: pre-wrap; word-break: break-word; }
+  </style>
+</head>
+<body>
+  <h1>${title}</h1>
+  <pre>${escaped}</pre>
+</body>
+</html>`);
+    printWindow.document.close();
+    printWindow.print();
   };
 
   const categories = ["감사", "공모사업", "가이드라인", "기타"];
 
-  // 5. 안전장치: 로딩 중이거나 데이터가 없을 때 UI 튕김 방지
+  // 8. 예외 처리 분기 (로딩 및 미존재 대응)
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center text-muted-foreground">로딩 중...</div>;
   }
@@ -165,7 +220,6 @@ export default function DocumentDetail() {
           <div className="flex items-center gap-2">
             {isEditing ? (
               <>
-                {/* 🛠️ 버그 수정: 하드코딩 대신 앞서 정의한 handleCancel 연동 */}
                 <Button variant="outline" onClick={handleCancel}>
                   취소
                 </Button>
@@ -181,10 +235,10 @@ export default function DocumentDetail() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent>
-                    <DropdownMenuItem onClick={() => alert("TXT 파일 다운로드 중...")}>
+                    <DropdownMenuItem onClick={() => handleDownloadTxt()}>
                       TXT 다운로드
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => alert("PDF 파일 다운로드 중...")}>
+                    <DropdownMenuItem onClick={handleDownloadPdf}>
                       PDF 다운로드
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -196,7 +250,10 @@ export default function DocumentDetail() {
                 <Button
                   variant="outline"
                   className="border-destructive text-destructive hover:bg-destructive hover:text-white"
-                  onClick={() => setShowDeleteDialog(true)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenDeleteModal();
+                  }}
                 >
                   <Trash2 className="size-4" />
                   삭제
@@ -218,7 +275,6 @@ export default function DocumentDetail() {
             <CardContent className="flex-1 overflow-hidden">
               <div className="bg-muted/30 rounded-lg p-4 h-full overflow-y-auto">
                 <div className="prose prose-sm max-w-none">
-                  {/* 🛠️ 버그 수정: 존재하지 않는 originalText 대신 content 바인딩 */}
                   <div className="space-y-4 text-sm leading-relaxed text-foreground whitespace-pre-wrap">
                     {content}
                   </div>
@@ -251,26 +307,17 @@ export default function DocumentDetail() {
         </div>
       </main>
 
-      {/* 삭제 얼럿 모달 */}
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>문서 삭제</AlertDialogTitle>
-            <AlertDialogDescription>
-              이 문서를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>취소</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              className="bg-destructive text-white hover:bg-destructive/90"
-            >
-              삭제
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* 공통 컨펌 모달 연동 */}
+      <ConfirmModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={handleDeleteConfirm}
+        title="문서 삭제"
+        description="정말 삭제하시겠습니까?"
+        confirmText="삭제"
+        cancelText="취소"
+        variant="destructive"
+      />
     </div>
   );
 }

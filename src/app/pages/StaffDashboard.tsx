@@ -123,10 +123,7 @@ export default function StaffDashboard({ userRole, showApproverMenu, showAdminMe
         duration: 3000,
       });
       }
-
-
     }
-
   };
 
   // Retrieve the raw string data
@@ -364,6 +361,7 @@ export default function StaffDashboard({ userRole, showApproverMenu, showAdminMe
                         key={doc.id}
                         className="border-b border-border hover:bg-muted/30 cursor-pointer transition-colors"
                         onClick={() =>
+
                           navigate(`/document/${doc.id}`)
                         }
                       >

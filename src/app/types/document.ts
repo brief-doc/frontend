@@ -20,3 +20,9 @@ export interface DocDetailResponse{
   file_type: string;
   updated_at: string;
 }
+
+export interface DocUpdateParams {
+  title?: string;
+  category?: string;
+  summary?: string;  
+}
