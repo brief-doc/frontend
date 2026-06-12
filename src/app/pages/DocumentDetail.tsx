@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useState, useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom"; 
 import { Header } from "../components/Header";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -31,56 +31,100 @@ import {
   DropdownMenuTrigger,
 } from "../components/ui/dropdown-menu";
 import { ArrowLeft, Edit, Trash2, Download } from "lucide-react";
-
+import { getDocumentDetail } from "../api/document";
+import type { DocDetailItem } from "@/types/document";
+  
 export default function DocumentDetail() {
   const navigate = useNavigate();
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
+
+  const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [title, setTitle] = useState("신규_공모사업_지침");
-  const [category, setCategory] = useState("공모사업");
-  const [summary, setSummary] = useState(
-    `○ 공모 대상: 가명정보 활용 데이터 분석 과제
-○ 신청 기간: 2026.06.15 ~ 07.15
-○ 지원 규모: 과제당 최대 5천만원
-○ 제출 서류: 사업계획서, 개인정보 처리방침
-○ 평가 기준: 데이터 활용 적정성, 개인정보 보호 계획, 사업 수행 역량
-○ 문의처: 개인정보보호위원회 데이터정책과 (02-2100-3000)`
-  );
+  const [document, setDocument] = useState<DocDetailItem | null>(null);
 
-  const originalText = `제1조 (목적)
-이 지침은 「개인정보 보호법」 제28조의2 및 같은 법 시행령 제29조의2에 따른 가명정보의 처리에 관한 세부 사항을 정함으로써 가명정보를 활용한 신규 서비스 창출과 기존 서비스 개선을 도모하고 개인정보를 보호하는 데 그 목적이 있다.
+  const [title, setTitle] = useState("");
+  const [category, setCategory] = useState("");
+  const [summary, setSummary] = useState("");
+  const [content, setContent] = useState("");
 
-제2조 (공모사업 개요)
-가명정보를 활용한 데이터 분석 과제를 발굴하여 지원하는 것을 목적으로 한다. 신청 기간은 2026년 6월 15일부터 7월 15일까지이며, 선정된 과제에 대하여 과제당 최대 5천만원을 지원한다.
+  // 1. 페이지 진입 시 데이터 단건 조회
+  useEffect(() => {
+    if (!id) return;
+    setLoading(true);
+    getDocumentDetail(Number(id))
+      .then((data: DocDetailItem) => {
+        setDocument(data);
+        
+        // Form 필드 초기값 세팅
+        setTitle(data.title);
+        setCategory(data.category);
+        setSummary(data.summary);
+        setContent(data.content);
+      })
+      .catch((err) => {
+        console.error(err);
+        toast.error("문서 상세 정보를 불러오지 못했습니다.");
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, [id]);
 
-제3조 (신청 자격 및 제출 서류)
-공공기관, 민간기업, 연구기관 등 가명정보 처리가 필요한 법인 및 단체가 신청할 수 있다. 제출 서류는 사업계획서, 개인정보 처리방침, 가명처리 계획서를 포함한다.
-
-제4조 (평가 기준)
-데이터 활용의 적정성, 개인정보 보호 계획의 충실성, 사업 수행 역량 등을 종합적으로 평가한다.
-
-제5조 (문의처)
-사업 관련 문의는 개인정보보호위원회 데이터정책과(전화: 02-2100-3000)로 연락하시기 바랍니다.`;
-
-  const handleSave = () => {
+  // 2. 수정 취소 핸들러 (기존 상세 정보로 롤백)
+  const handleCancel = () => {
+    if (document) {
+      setTitle(document.title);
+      setCategory(document.category);
+      setSummary(document.summary);
+      setContent(document.content);
+    }
     setIsEditing(false);
-    toast.success("문서가 수정되었습니다.");
   };
 
-  const handleDelete = () => {
-    toast.error("문서가 삭제되었습니다.");
-    navigate("/staff/dashboard");
+  // 3. 수정 저장 핸들러
+  const handleSave = async () => {
+    try {
+      // TODO: 필요 시 백엔드 수정 API 호출 연동 (ex: await updateDocument(Number(id), { title, category, summary }))
+      setIsEditing(false);
+      
+      // 로컬 state 업데이트 반영
+      if (document) {
+        setDocument({ ...document, title, category, summary, content });
+      }
+      toast.success("문서가 수정되었습니다.");
+    } catch (error) {
+      toast.error("문서 수정에 실패했습니다.");
+    }
+  };
+
+  // 4. 삭제 핸들러
+  const handleDelete = async () => {
+    try {
+      // TODO: 필요 시 백엔드 삭제 API 호출 연동 (ex: await deleteDocument(Number(id)))
+      toast.error("문서가 삭제되었습니다.");
+      navigate("/staff/dashboard");
+    } catch (error) {
+      toast.error("문서 삭제에 실패했습니다.");
+    }
   };
 
   const categories = ["감사", "공모사업", "가이드라인", "기타"];
+
+  // 5. 안전장치: 로딩 중이거나 데이터가 없을 때 UI 튕김 방지
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center text-muted-foreground">로딩 중...</div>;
+  }
+  if (!document) {
+    return <div className="min-h-screen flex items-center justify-center text-muted-foreground">문서를 찾을 수 없습니다.</div>;
+  }
 
   return (
     <div className="min-h-screen bg-background">
       <Toaster />
       <Header userName="김주무관" userRole="실무 담당자" notificationCount={2} />
-    
 
+      {/* 상단 컨트롤 바 */}
       <div className="border-b border-border px-6 py-4 bg-white">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -121,14 +165,8 @@ export default function DocumentDetail() {
           <div className="flex items-center gap-2">
             {isEditing ? (
               <>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setIsEditing(false);
-                    setTitle("신규_공모사업_지침");
-                    setCategory("공모사업");
-                  }}
-                >
+                {/* 🛠️ 버그 수정: 하드코딩 대신 앞서 정의한 handleCancel 연동 */}
+                <Button variant="outline" onClick={handleCancel}>
                   취소
                 </Button>
                 <Button onClick={handleSave}>저장</Button>
@@ -151,10 +189,7 @@ export default function DocumentDetail() {
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-                <Button
-                  variant="outline"
-                  onClick={() => setIsEditing(true)}
-                >
+                <Button variant="outline" onClick={() => setIsEditing(true)}>
                   <Edit className="size-4" />
                   수정
                 </Button>
@@ -172,8 +207,10 @@ export default function DocumentDetail() {
         </div>
       </div>
 
+      {/* 메인 뷰어 영역 */}
       <main className="container mx-auto px-6 py-8 max-w-7xl h-[calc(100vh-200px)]">
         <div className="grid grid-cols-2 gap-6 h-full">
+          {/* 왼쪽 카드: 원문 */}
           <Card className="flex flex-col">
             <CardHeader className="shrink-0">
               <CardTitle className="text-base">원문</CardTitle>
@@ -181,14 +218,16 @@ export default function DocumentDetail() {
             <CardContent className="flex-1 overflow-hidden">
               <div className="bg-muted/30 rounded-lg p-4 h-full overflow-y-auto">
                 <div className="prose prose-sm max-w-none">
+                  {/* 🛠️ 버그 수정: 존재하지 않는 originalText 대신 content 바인딩 */}
                   <div className="space-y-4 text-sm leading-relaxed text-foreground whitespace-pre-wrap">
-                    {originalText}
+                    {content}
                   </div>
                 </div>
               </div>
             </CardContent>
           </Card>
 
+          {/* 오른쪽 카드: 요약본 */}
           <Card className="flex flex-col">
             <CardHeader className="shrink-0">
               <CardTitle className="text-base">요약본</CardTitle>
@@ -212,6 +251,7 @@ export default function DocumentDetail() {
         </div>
       </main>
 
+      {/* 삭제 얼럿 모달 */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
