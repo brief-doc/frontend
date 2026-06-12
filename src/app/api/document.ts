@@ -1,6 +1,5 @@
 import type { DocResponse, DocItem } from "@/types/document";
-
-import { API_BASE_URL } from "../../lib/api";
+import  api from "../../lib/api";
 
 // ── API 호출 ─────────────────────────────
 export async function getDocuments(params?: {
@@ -13,9 +12,27 @@ export async function getDocuments(params?: {
   if (params?.skip != null) query.set("skip", String(params.skip));
   if (params?.limit != null) query.set("limit", String(params.limit));
 
-  const res = await fetch(`${API_BASE_URL}/docs/?${query}`);
-  if (!res.ok) throw new Error(`문서 조회 실패: ${res.status}`);
-  return res.json();
+  try {
+    const res = await api.get(`/documents/?${query}`);
+    return res.data;
+  } catch (err: any) {
+    throw new Error(err.response?.data?.detail || "문서 조회 실패");
+  }
+}
+
+# 문서 삭제
+export async function deletedDocument(docId: number): Promise<Boolean> {
+  try {
+    const response = await api.delete(`/documents/${docId}`);
+
+    if (response.status === 204) {
+      return true;
+     
+    }
+    return false;
+  } catch (error) {
+    return false;
+  }
 }
 
 // ── 변환 헬퍼 ─────────────────────────────

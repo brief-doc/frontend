@@ -13,8 +13,8 @@ import { Button } from "../components/ui/button";
 import ConfirmModal from "../components/ui/confirm-modal";
 import { StatusBadge } from "../components/StatusBadge";
 import { FileSearch, FileText, Plus } from "lucide-react";
-import { getDocuments, deleteDocument, toDocItem } from "@/app/api/document";
-import type { DocResponse } from "@/types/document";
+import { getDocuments, toDocItem, deletedDocument } from "../api/document";
+import type {DocItem } from "@/types/document";
 
 interface StaffDashboardProps {
   userRole?: string;
@@ -102,18 +102,29 @@ export default function StaffDashboard({ userRole, showApproverMenu, showAdminMe
   };
 
   // 💡 3. 모달에서 '확인'을 눌렀을 때 실제 삭제를 처리할 함수
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     if (selectedDocId !== null) {
       // 실제 삭제 로직 (State 반영 또는 API 호출)
-      setDocuments(documents.filter(doc => doc.id !== selectedDocId));
+      const isSuccess = await deletedDocument(selectedDocId);
+      
+      if(isSuccess){
+        setDocuments(documents.filter(doc => doc.id !== selectedDocId));
 
-      setIsDeleteModalOpen(false);
-      setSelectedDocId(null);
+        setIsDeleteModalOpen(false);
+        setSelectedDocId(null);
+  
+        toast.success("문서를 성공적으로 삭제했습니다.", {
+          position: "top-center", 
+          duration: 3000,         
+        }); 
+      }else {
+        toast.error("삭제를 실패했습니다. 권한이 없거나 이미 없는 데이터일 수 있습니다.", {
+        position: "top-center",
+        duration: 3000,
+      });
+      }
 
-      toast.success("문서를 성공적으로 삭제했습니다.", {
-        position: "top-center", // 위치 조절 가능 (top-right, bottom-center 등)
-        duration: 3000,         // 3초 동안 노출
-      }); // 이 alert도 이쁜 토스트나 모달로 대체 가능합니다.
+
     }
 
   };
