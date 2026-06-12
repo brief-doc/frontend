@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react"; 
 import { useNavigate } from "react-router";
 import { Header } from "../components/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
@@ -8,6 +8,7 @@ import { Label } from "../components/ui/label";
 import { Badge } from "../components/ui/badge";
 import { ArrowLeft, User } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
+import { changePasswordAPI } from "../api/auth";
 
 export default function MyPage() {
   const navigate = useNavigate();
@@ -27,14 +28,13 @@ export default function MyPage() {
   const userInfo = {
     name: sessionData?.user_name ?? sessionData?.name ?? "사용자",
     email: sessionData?.email ?? "no-reply@example.com",
-    rank: sessionData?.user_rank ?? 1,
     department: "개인정보보호과",
     position: "주무관",
-    roles: ["실무 담당자"],
+    roles: (sessionData?.roles ?? []) as string[],
     joinDate: "2025.03.15",
   };
 
-  const handlePasswordChange = (e: React.FormEvent) => {
+  const handlePasswordChange = async(e: React.FormEvent) => {
     e.preventDefault();
     if (passwordData.new !== passwordData.confirm) {
       alert("새 비밀번호가 일치하지 않습니다.");
@@ -44,9 +44,19 @@ export default function MyPage() {
       alert("비밀번호는 최소 6자 이상이어야 합니다.");
       return;
     }
-    toast.success("비밀번호가 변경되었습니다.");
-    setIsChangingPassword(false);
-    setPasswordData({ current: "", new: "", confirm: "" });
+    try {
+      await changePasswordAPI(
+        userInfo.email,
+        sessionData?.id,          // 로그인 시 저장해둔 id
+        passwordData.current,
+        passwordData.new
+      );
+      toast.success("비밀번호가 변경되었습니다.");
+      setIsChangingPassword(false);
+      setPasswordData({ current: "", new: "", confirm: "" });
+    } catch (err: any) {
+      toast.error(err?.message || "비밀번호 변경에 실패했습니다.");
+    }
   };
 
   const roleColors: Record<string, string> = {
@@ -58,7 +68,7 @@ export default function MyPage() {
   return (
     <div className="min-h-screen bg-background">
       <Toaster />
-      <Header userName={userInfo.name} userRole={userInfo.roles[0]} notifications={[]} />
+      <Header userName={userInfo.name} userRole={userInfo.roles[0]??"실무자"} notifications={[]} />
 
       <div className="border-b border-border px-6 py-4 bg-white">
         <div className="flex items-center gap-3">
@@ -106,10 +116,6 @@ export default function MyPage() {
                   <div>
                     <span className="text-muted-foreground">이메일</span>
                     <p className="text-foreground mt-1">{userInfo.email}</p>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">등급</span>
-                    <p className="text-foreground mt-1">{userInfo.rank}</p>
                   </div>
                   <div>
                     <span className="text-muted-foreground">가입일</span>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react"; 
 import { useNavigate } from "react-router";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardDescription, CardTitle } from "../co
 import { Badge } from "../components/ui/badge";
 import { PasswordChangeModal } from "../components/PasswordChangeModal";
 import { API_BASE_URL } from "../../lib/api";
+import {getMeAPI} from "../api/auth";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -15,17 +16,13 @@ export default function Login() {
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [userData, setUserData] = useState<any>(null);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage("");
 
-    // 초기 비밀번호 체크
-    if (password === "000000") {
-      setShowPasswordModal(true);
-      return;
-    }
-
+    sessionStorage.removeItem("user_session");
     setIsLoading(true);
 
     try {
@@ -45,7 +42,15 @@ export default function Login() {
         return;
       }
 
-      if ((data.user_name || data.name) && data.email) {
+      // 초기 비밀번호로 로그인할 때 user_login이 null인지 확인
+      if (data.user_login === null) {
+        setUserData(data);
+        console.log("stupid ", data.user_login);
+        setShowPasswordModal(true);
+        return;
+      }
+
+      if (data.name && data.email) {
         sessionStorage.setItem(
           "user_session",
           JSON.stringify({
@@ -53,7 +58,7 @@ export default function Login() {
             name: data.name,
             email: data.email,
             id: data.id,
-            user_rank: data.user_rank,
+            roles: data.roles ?? [],
           })
         );
       } else {
@@ -69,7 +74,7 @@ export default function Login() {
               name: meData.name,
               email: meData.email,
               id: meData.id,
-              user_rank: meData.user_rank,
+              roles: meData.roles ?? [],
             })
           );
         } else {
@@ -83,27 +88,19 @@ export default function Login() {
       // Parse it back into an object if it was JSON
       const sessionData = rawData ? JSON.parse(rawData) : null;
 
-      const userInfo = {
-        name: sessionData?.user_name ?? sessionData?.name ?? "사용자",
-        email: sessionData?.email ?? "no-reply@example.com",
-        rank: sessionData?.user_rank ?? 1,
-        department: "개인정보보호과",
-        position: "주무관",
-        roles: ["실무 담당자"],
-        joinDate: "2025.03.15",
-      };
-
-      if (userInfo.rank >= 7) {
+      const roles: string[] = sessionData?.roles ?? [];
+      
+      if (roles.includes("관리자")) {
         navigate("/admin/dashboard");
-      } else if (userInfo.rank >= 3) {
+      } else if (roles.includes("결재권자")) {
         navigate("/staff/dashboard/approver");
-      } else if (userInfo.rank >= 2) {
+      } else if (roles.includes("실무 담당자")) {
         navigate("/staff/dashboard");
-      }
-      else {
+      } else {
         navigate("/rag-search");
       }
     } catch (error) {
+      console.error("login error:", error); 
       setErrorMessage("서버에 연결할 수 없습니다. 다시 시도해주세요.");
     } finally {
       setIsLoading(false);
@@ -177,14 +174,20 @@ export default function Login() {
 
       <PasswordChangeModal
         open={showPasswordModal}
-        onClose={() => {
+        email={email}
+        userId={userData?.id}
+        onClose={async () => {
           setShowPasswordModal(false);
-          if (email === "admin" || email.includes("관리자")) {
+          const meData = await getMeAPI();
+          const roles: string[] = meData?.roles ?? [];
+          if (roles.includes("관리자")) {
             navigate("/admin/dashboard");
-          } else if (email === "approver" || email.includes("박과장")) {
+          } else if (roles.includes("결재권자")) {
             navigate("/staff/dashboard/approver");
-          } else {
+          } else if (roles.includes("실무 담당자")) {
             navigate("/staff/dashboard");
+          } else {
+            navigate("/rag-search");
           }
         }}
       />
