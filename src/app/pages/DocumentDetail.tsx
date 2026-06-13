@@ -21,7 +21,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "../components/ui/dropdown-menu";
-import { ArrowLeft, Edit, Trash2, Download } from "lucide-react";
+import { ArrowLeft, Edit, Trash2, Download, FilePen } from "lucide-react";
 import { getDocumentDetail, deletedDocument, updateDocument } from "../api/document";
 import type { DocDetailItem } from "@/types/document";
   
@@ -227,6 +227,21 @@ export default function DocumentDetail() {
               </>
             ) : (
               <>
+                <Button
+                  variant="outline"
+                  onClick={() =>
+                    navigate("/draft/new", {
+                      state: {
+                        sourceDocId: Number(id),
+                        sourceDocName: title,
+                        sourceSummary: summary,
+                      },
+                    })
+                  }
+                >
+                  <FilePen className="size-4" />
+                  기안 작성
+                </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline">
