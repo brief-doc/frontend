@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react"; 
+import { useState, useEffect  } from "react";
 import { useNavigate } from "react-router";
 import toast, { Toaster } from "react-hot-toast";
 import { Header } from "../components/Header";
@@ -13,7 +13,9 @@ import { Button } from "../components/ui/button";
 import ConfirmModal from "../components/ui/confirm-modal";
 import { StatusBadge } from "../components/StatusBadge";
 import { FileSearch, FileText, Plus } from "lucide-react";
-import { ArrowLeft, User } from "lucide-react";
+import { getDocuments, toDocItem, deletedDocument } from "../api/document";
+import type {DocItem } from "@/types/document";
+
 interface StaffDashboardProps {
   userRole?: string;
   showApproverMenu?: boolean;
@@ -71,12 +73,15 @@ export default function StaffDashboard({ userRole, showApproverMenu, showAdminMe
     },
   ];
 
-  const [documents, setDocuments] = useState([
-    { id: 1, title: "신규_공모사업_지침", category: "공모사업", date: "2026.06.01", status: "완료" },
-    { id: 2, title: "감사원_처분요구서_2026", category: "감사", date: "2026.05.30", status: "완료" },
-    { id: 3, title: "가명정보_처리_가이드라인", category: "가이드라인", date: "2026.05.28", status: "완료" },
-    { id: 4, title: "개인정보보호_내부지침_개정안", category: "기타", date: "2026.05.25", status: "완료" },
-  ]);
+  const [documents, setDocuments] =  useState<DocItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getDocuments({ limit: 50 })
+      .then((data) => setDocuments(data.map(toDocItem)))
+      .catch(() => toast.error("문서 목록을 불러오지 못했습니다."))
+      .finally(() => setLoading(false));
+  }, []);
 
   const filteredDrafts = drafts
     .filter((d) => statusFilter === "all" || d.status === statusFilter)
@@ -97,20 +102,28 @@ export default function StaffDashboard({ userRole, showApproverMenu, showAdminMe
   };
 
   // 💡 3. 모달에서 '확인'을 눌렀을 때 실제 삭제를 처리할 함수
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     if (selectedDocId !== null) {
       // 실제 삭제 로직 (State 반영 또는 API 호출)
-      setDocuments(documents.filter(doc => doc.id !== selectedDocId));
+      const isSuccess = await deletedDocument(selectedDocId);
+      
+      if(isSuccess){
+        setDocuments(documents.filter(doc => doc.id !== selectedDocId));
 
-      setIsDeleteModalOpen(false);
-      setSelectedDocId(null);
-
-      toast.success("문서를 성공적으로 삭제했습니다.", {
-        position: "top-center", // 위치 조절 가능 (top-right, bottom-center 등)
-        duration: 3000,         // 3초 동안 노출
-      }); // 이 alert도 이쁜 토스트나 모달로 대체 가능합니다.
+        setIsDeleteModalOpen(false);
+        setSelectedDocId(null);
+  
+        toast.success("문서를 성공적으로 삭제했습니다.", {
+          position: "top-center", 
+          duration: 3000,         
+        }); 
+      }else {
+        toast.error("삭제를 실패했습니다. 권한이 없거나 이미 없는 데이터일 수 있습니다.", {
+        position: "top-center",
+        duration: 3000,
+      });
+      }
     }
-
   };
 
   // Retrieve the raw string data
@@ -348,6 +361,7 @@ export default function StaffDashboard({ userRole, showApproverMenu, showAdminMe
                         key={doc.id}
                         className="border-b border-border hover:bg-muted/30 cursor-pointer transition-colors"
                         onClick={() =>
+
                           navigate(`/document/${doc.id}`)
                         }
                       >
