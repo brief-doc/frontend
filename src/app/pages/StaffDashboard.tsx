@@ -13,7 +13,7 @@ import { Button } from "../components/ui/button";
 import ConfirmModal from "../components/ui/confirm-modal";
 import { StatusBadge } from "../components/StatusBadge";
 import { FileSearch, FileText, Plus } from "lucide-react";
-import { getDocuments, toDocItem, deletedDocument } from "../api/document";
+import { getDocumentList, toDocItem, deletedDocument } from "../api/document";
 import type {DocItem } from "@/types/document";
 
 interface StaffDashboardProps {
@@ -74,14 +74,40 @@ export default function StaffDashboard({ userRole, showApproverMenu, showAdminMe
   ];
 
   const [documents, setDocuments] =  useState<DocItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [category, setCategory] = useState("전체"); // 이미지의 '가이드라인' 등
+  const [keyword, setKeyword] = useState("");       // 검색어
+  const [page, setPage] = useState(1);              // 현재 페이지 번호
+  const [totalCount, setTotalCount] = useState(0);  // 총 아이템 수
+  const LIMIT = 5;                                 // 한 페이지에 보여줄 개수
+  const [sortBy, setSortBy] = useState("created_at");
 
   useEffect(() => {
-    getDocuments({ limit: 50 })
-      .then((data) => setDocuments(data.map(toDocItem)))
-      .catch(() => toast.error("문서 목록을 불러오지 못했습니다."))
-      .finally(() => setLoading(false));
-  }, []);
+    const fetchList = async () => {
+      const data = await getDocumentList({
+        page,
+        limit: LIMIT,
+        category,
+        keyword,
+        sort_by: sortBy
+      });
+
+      if (data) {
+        setDocuments(data.items);
+        setTotalCount(data.total_count);
+      }
+    };
+
+    fetchList();    
+  }, [page, category, keyword, sortBy]);
+
+  // 카테고리나 검색어가 바뀌면 페이지를 '1'로 리셋
+  const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setCategory(e.target.value);
+    setPage(1);
+  };
+
+  // 하단 페이징 블록 계산 
+  const totalPages = Math.ceil(totalCount / LIMIT);
 
   const filteredDrafts = drafts
     .filter((d) => statusFilter === "all" || d.status === statusFilter)
@@ -296,7 +322,10 @@ export default function StaffDashboard({ userRole, showApproverMenu, showAdminMe
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <CardTitle>내 문서함</CardTitle>
-                  <select className="px-3 py-1.5 text-sm border border-border rounded-md bg-input-background focus:outline-none focus:ring-2 focus:ring-ring">
+                  <select 
+                    value={category}
+                    onChange={handleCategoryChange}
+                    className="px-3 py-1.5 text-sm border border-border rounded-md bg-input-background focus:outline-none focus:ring-2 focus:ring-ring" >
                     <option>전체</option>
                     <option>감사</option>
                     <option>공모사업</option>
@@ -309,6 +338,11 @@ export default function StaffDashboard({ userRole, showApproverMenu, showAdminMe
                     <input
                       type="text"
                       placeholder="검색..."
+                      value={keyword}
+                      onChange={(e) => {
+                        setKeyword(e.target.value);
+                        setPage(1); // 검색어 타이핑 시에도 1페이지로 리셋
+                      }}
                       className="pl-8 pr-3 py-1.5 text-sm border border-border rounded-md bg-input-background focus:outline-none focus:ring-2 focus:ring-ring w-48"
                     />
                     <svg
@@ -325,10 +359,16 @@ export default function StaffDashboard({ userRole, showApproverMenu, showAdminMe
                       />
                     </svg>
                   </div>
-                  <select className="px-3 py-1.5 text-sm border border-border rounded-md bg-input-background focus:outline-none focus:ring-2 focus:ring-ring">
-                    <option>최신순</option>
-                    <option>제목순</option>
-                    <option>카테고리순</option>
+                  <select 
+                    value={sortBy}
+                    onChange={(e) => {
+                      setSortBy(e.target.value);
+                      setPage(1);
+                    }}
+                    className="px-3 py-1.5 text-sm border border-border rounded-md bg-input-background focus:outline-none focus:ring-2 focus:ring-ring">
+                    <option value="created_at">최신순</option>
+                    <option value="title">제목순</option>
+                    <option value="oldest">오래된순</option>
                   </select>
                 </div>
               </div>
@@ -356,7 +396,17 @@ export default function StaffDashboard({ userRole, showApproverMenu, showAdminMe
                     </tr>
                   </thead>
                   <tbody>
-                    {documents.map((doc) => (
+                  {documents.length === 0 ? (
+                    <tr className="border-b border-border bg-background">
+                      <td 
+                        colSpan={5} 
+                        className="px-4 py-10 text-center text-sm text-muted-foreground font-medium"
+                      >
+                        🔍 조건에 부합하는 문서가 존재하지 않습니다.
+                      </td>
+                    </tr>
+                  ) : (
+                    documents.map((doc) => (
                       <tr
                         key={doc.id}
                         className="border-b border-border hover:bg-muted/30 cursor-pointer transition-colors"
@@ -431,29 +481,39 @@ export default function StaffDashboard({ userRole, showApproverMenu, showAdminMe
                           </div>
                         </td>
                       </tr>
-                    ))}
+                      
+                    )))}
                   </tbody>
                 </table>
               </div>
               <div className="flex items-center justify-center gap-2 mt-4">
-                <Button variant="outline" size="sm" disabled>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  disabled={page === 1}
+                  onClick={() => setPage((prev) => prev - 1)}
+                >
                   이전
                 </Button>
                 <div className="flex items-center gap-1">
-                  {[1, 2, 3].map((page) => (
-                    <Button
-                      key={page}
-                      variant={
-                        page === 1 ? "default" : "outline"
-                      }
-                      size="sm"
-                      className="w-8"
-                    >
-                      {page}
-                    </Button>
-                  ))}
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                      <Button
+                        key={p}
+                        variant={page === p ? "default" : "outline"}
+                        size="sm"
+                        className="w-8"
+                        onClick={() => setPage(p)}
+                      >
+                        {p}
+                      </Button>
+                    ))}
                 </div>
-                <Button variant="outline" size="sm">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  disabled={page === totalPages}
+                  onClick={() => setPage((prev) => prev + 1)}
+                >
                   다음
                 </Button>
               </div>
