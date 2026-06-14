@@ -46,8 +46,11 @@ export function filenameFromPath(filePath: string | null): string {
 export async function uploadDocument(file: File): Promise<PipelineJob> {
   const form = new FormData();
   form.append("file", file);
-  // Content-Type 헤더를 직접 지정하지 않아야 Axios가 boundary 포함 헤더를 자동 설정함
-  const { data } = await api.post("/documents/pipeline/upload", form);
+  // undefined로 설정해 인스턴스 기본값(application/json)을 제거 →
+  // 브라우저가 multipart/form-data; boundary=... 를 자동 설정
+  const { data } = await api.post("/documents/pipeline/upload", form, {
+    headers: { "Content-Type": undefined },
+  });
   return data;
 }
 
