@@ -192,7 +192,7 @@ export default function DocumentSummary() {
         <Card>
           <CardContent className="pt-6">
             <div
-              className={`border-2 border-dashed rounded-lg p-12 text-center space-y-4 transition-colors ${
+              className={`border-2 border-dashed rounded-lg p-8 text-center space-y-3 transition-colors ${
                 dragging ? "border-primary bg-primary/5" : "border-border"
               }`}
               onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
@@ -200,17 +200,18 @@ export default function DocumentSummary() {
               onDrop={handleDrop}
             >
               <div className="flex justify-center">
-                <div className="size-16 bg-primary/10 rounded-lg flex items-center justify-center">
-                  <Upload className="size-8 text-primary" />
+                <div className="size-10 bg-primary/10 rounded-lg flex items-center justify-center">
+                  <Upload className="size-5 text-primary" />
                 </div>
               </div>
               <div>
-                <p className="text-foreground font-medium mb-1">
+                <p className="text-foreground font-medium mb-0.5">
                   PDF를 끌어다 놓거나 파일을 선택하세요
                 </p>
                 <p className="text-sm text-muted-foreground">최대 100MB</p>
               </div>
               <Button
+                size="sm"
                 disabled={uploading}
                 onClick={() => fileInputRef.current?.click()}
               >
