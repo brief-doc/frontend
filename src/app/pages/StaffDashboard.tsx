@@ -92,7 +92,13 @@ export default function StaffDashboard({ userRole, showApproverMenu, showAdminMe
     fetchDrafts();
   }, [fetchDrafts]);
 
-  // APPROVAL 알림 수신 시 기안 목록 자동 갱신 (승인/반려 결과 즉시 반영)
+  // 15초 폴링 — 승인/반려 결과를 새로고침 없이 자동 반영
+  useEffect(() => {
+    const id = setInterval(fetchDrafts, 15000);
+    return () => clearInterval(id);
+  }, [fetchDrafts]);
+
+  // APPROVAL 알림 수신 시 즉시 갱신 (SSE가 살아있을 때 보너스)
   useEffect(() => {
     if (latest?.link?.startsWith("APPROVAL:")) {
       fetchDrafts();
@@ -304,7 +310,7 @@ export default function StaffDashboard({ userRole, showApproverMenu, showAdminMe
                       새로운 알림이 없습니다
                     </p>
                   ) : (
-                    notifications.slice(0, 5).map((notif) => (
+                    notifications.slice(0, 3).map((notif) => (
                       <div
                         key={notif.id}
                         className="flex gap-3 p-3 border border-border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
