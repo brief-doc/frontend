@@ -1,4 +1,4 @@
-import { useState, useEffect  } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router";
 import toast, { Toaster } from "react-hot-toast";
 import { Header } from "../components/Header";
@@ -12,10 +12,11 @@ import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import ConfirmModal from "../components/ui/confirm-modal";
 import { FileSearch, FileText, Plus } from "lucide-react";
-import { getDocumentList, toDocItem, deletedDocument } from "../api/document";
+import { getDocumentList, deletedDocument } from "../api/document";
 import type { DocItem } from "../types/document";
 import { getDraftList, formatDate, mapStatusLabel } from "../api/draft";
 import type { DraftListItem } from "../types/draft";
+import { useNotifications } from "../hooks/useNotifications";
 
 interface StaffDashboardProps {
   userRole?: string;
@@ -29,29 +30,8 @@ export default function StaffDashboard({ userRole, showApproverMenu, showAdminMe
   const [sortOrder, setSortOrder] = useState("latest");
   const [drafts, setDrafts] = useState<DraftListItem[]>([]);
 
-  const notifications = [
-    {
-      id: 1,
-      message: "'데이터 결합 가이드 검토' 기안이 승인되었습니다",
-      time: "방금",
-      unread: true,
-      link: "/draft/1",
-    },
-    {
-      id: 2,
-      message: "'감사원 처분요구서 대응' 반려 — 사유 확인 필요",
-      time: "1시간 전",
-      unread: true,
-      link: "/draft/3",
-    },
-    {
-      id: 3,
-      message: "'개인정보 처리 지침 개정' 기안이 상신되었습니다",
-      time: "3시간 전",
-      unread: false,
-      link: "/draft/4",
-    },
-  ];
+  // 알림 훅 (SSE 실시간 + API 초기 로드)
+  const { notifications, markRead, latest } = useNotifications();
 
   const [documents, setDocuments] =  useState<DocItem[]>([]);
   const [category, setCategory] = useState("전체"); // 이미지의 '가이드라인' 등
@@ -95,21 +75,29 @@ export default function StaffDashboard({ userRole, showApproverMenu, showAdminMe
     title: "title",
   };
 
-  useEffect(() => {
-    const fetchDrafts = async () => {
-      try {
-        const data = await getDraftList({
-          status: statusFilter === "all" ? undefined : statusFilter,
-          sort_by: SORT_MAP[sortOrder] ?? "created_at",
-          limit: 3,
-        });
-        setDrafts(data.items);
-      } catch {
-        toast.error("기안 목록을 불러오지 못했습니다.");
-      }
-    };
-    fetchDrafts();
+  const fetchDrafts = useCallback(async () => {
+    try {
+      const data = await getDraftList({
+        status: statusFilter === "all" ? undefined : statusFilter,
+        sort_by: SORT_MAP[sortOrder] ?? "created_at",
+        limit: 3,
+      });
+      setDrafts(data.items);
+    } catch {
+      toast.error("기안 목록을 불러오지 못했습니다.");
+    }
   }, [statusFilter, sortOrder]);
+
+  useEffect(() => {
+    fetchDrafts();
+  }, [fetchDrafts]);
+
+  // APPROVAL 알림 수신 시 기안 목록 자동 갱신 (승인/반려 결과 즉시 반영)
+  useEffect(() => {
+    if (latest?.link?.startsWith("APPROVAL:")) {
+      fetchDrafts();
+    }
+  }, [latest]);
 
   // 💡 1. 모달의 열림 상태와 현재 선택된 문서 ID를 관리할 State 추가
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -166,6 +154,7 @@ export default function StaffDashboard({ userRole, showApproverMenu, showAdminMe
         userName={userInfo.name}
         userRole={userInfo.roles}
         notifications={notifications}
+        onMarkNotificationRead={markRead}
         showApproverMenu={showApproverMenu}
         showAdminMenu={showAdminMenu}
       />
@@ -301,32 +290,43 @@ export default function StaffDashboard({ userRole, showApproverMenu, showAdminMe
               <CardHeader className="pb-4">
                 <div className="flex items-center justify-between">
                   <CardTitle>알림</CardTitle>
-                  <span className="text-xs px-2 py-1 bg-status-info text-white rounded-full">
-                    2 새 알림
-                  </span>
+                  {notifications.filter((n) => n.unread).length > 0 && (
+                    <span className="text-xs px-2 py-1 bg-status-info text-white rounded-full">
+                      {notifications.filter((n) => n.unread).length} 새 알림
+                    </span>
+                  )}
                 </div>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {notifications.map((notif) => (
-                    <div
-                      key={notif.id}
-                      className="flex gap-3 p-3 border border-border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
-                      onClick={() => notif.link && navigate(notif.link)}
-                    >
-                      {notif.unread && (
-                        <div className="size-2 bg-status-info rounded-full mt-2 shrink-0" />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-foreground leading-relaxed">
-                          {notif.message}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {notif.time}
-                        </p>
+                  {notifications.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      새로운 알림이 없습니다
+                    </p>
+                  ) : (
+                    notifications.slice(0, 5).map((notif) => (
+                      <div
+                        key={notif.id}
+                        className="flex gap-3 p-3 border border-border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
+                        onClick={() => {
+                          if (notif.unread) markRead(notif.id);
+                          if (notif.link) navigate(notif.link);
+                        }}
+                      >
+                        {notif.unread && (
+                          <div className="size-2 bg-status-info rounded-full mt-2 shrink-0" />
+                        )}
+                        <div className={`flex-1 min-w-0 ${!notif.unread ? "pl-5" : ""}`}>
+                          <p className="text-sm text-foreground leading-relaxed">
+                            {notif.message}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {notif.time}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </CardContent>
             </Card>

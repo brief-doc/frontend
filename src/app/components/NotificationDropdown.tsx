@@ -13,15 +13,20 @@ interface Notification {
   message: string;
   time: string;
   unread: boolean;
-  link?: string;
+  link?: string | null;
 }
 
 interface NotificationDropdownProps {
   notifications: Notification[];
   count: number;
+  onMarkRead?: (id: number) => void;
 }
 
-export function NotificationDropdown({ notifications, count }: NotificationDropdownProps) {
+export function NotificationDropdown({
+  notifications,
+  count,
+  onMarkRead,
+}: NotificationDropdownProps) {
   const navigate = useNavigate();
 
   return (
@@ -40,9 +45,11 @@ export function NotificationDropdown({ notifications, count }: NotificationDropd
         <div className="px-3 py-2 border-b border-border">
           <div className="flex items-center justify-between">
             <h3 className="font-medium text-sm">알림</h3>
-            <Badge variant="secondary" className="text-xs">
-              {count} 새 알림
-            </Badge>
+            {count > 0 && (
+              <Badge variant="secondary" className="text-xs">
+                {count} 새 알림
+              </Badge>
+            )}
           </div>
         </div>
         <div className="max-h-96 overflow-y-auto">
@@ -56,16 +63,15 @@ export function NotificationDropdown({ notifications, count }: NotificationDropd
                 key={notif.id}
                 className="px-3 py-3 cursor-pointer focus:bg-muted"
                 onClick={() => {
-                  if (notif.link) {
-                    navigate(notif.link);
-                  }
+                  if (notif.unread) onMarkRead?.(notif.id);
+                  if (notif.link) navigate(notif.link);
                 }}
               >
                 <div className="flex gap-3 w-full">
                   {notif.unread && (
                     <div className="size-2 bg-status-info rounded-full mt-2 shrink-0" />
                   )}
-                  <div className="flex-1 min-w-0">
+                  <div className={`flex-1 min-w-0 ${!notif.unread ? "pl-5" : ""}`}>
                     <p className="text-sm text-foreground leading-relaxed">
                       {notif.message}
                     </p>

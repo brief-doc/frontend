@@ -12,6 +12,7 @@ import ConfirmModal from "../components/ui/confirm-modal";
 import toast, { Toaster } from "react-hot-toast";
 import { getApprovalList, getApprovalDetail, postDecision } from "../api/draft";
 import type { ApprovalListItem, ApprovalDetail } from "../types/draft";
+import { useNotifications } from "../hooks/useNotifications";
 
 const LIMIT = 3;
 
@@ -43,6 +44,8 @@ export default function ApproverDashboard() {
   const [showApproveModal, setShowApproveModal] = useState(false);
   const [showRejectForm, setShowRejectForm] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
+
+  const { notifications, markRead } = useNotifications();
 
   const rawData = sessionStorage.getItem("user_session");
   const sessionData = rawData ? JSON.parse(rawData) : null;
@@ -134,6 +137,8 @@ export default function ApproverDashboard() {
       <Header
         userName={sessionData?.name ?? "사용자"}
         userRole={sessionData?.roles?.[0] ?? "결재권자"}
+        notifications={notifications}
+        onMarkNotificationRead={markRead}
         showAdminMenu={true}
         isApproverPage={true}
       />
