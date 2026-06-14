@@ -74,6 +74,12 @@ export default function ApproverDashboard() {
     fetchList();
   }, [page]);
 
+  // 15초 폴링 — 새 상신 기안을 새로고침 없이 자동 반영
+  useEffect(() => {
+    const id = setInterval(fetchList, 15000);
+    return () => clearInterval(id);
+  }, [fetchList]);
+
   // 상세 로드
   useEffect(() => {
     if (!selectedId) return;
