@@ -51,10 +51,17 @@ export function relativeTime(isoString: string): string {
   return `${Math.floor(diff / 86400)}일 전`;
 }
 
+export interface PipelineProgressEvent {
+  type: "pipeline_progress";
+  job_id: number;
+  stage: string;
+}
+
 /** SSE 구독 — EventSource 인스턴스를 반환하므로 컴포넌트 언마운트 시 .close() 필요 */
 export function subscribeSSE(
   onNotification: (noti: NotificationOut) => void,
   onConnected?: () => void,
+  onPipelineProgress?: (event: PipelineProgressEvent) => void,
 ): EventSource {
   const es = new EventSource(`${API_BASE_URL}/notifications/subscribe`, {
     withCredentials: true,
@@ -65,6 +72,8 @@ export function subscribeSSE(
       const data = JSON.parse(e.data);
       if (data.type === "connected") {
         onConnected?.();
+      } else if (data.type === "pipeline_progress") {
+        onPipelineProgress?.(data as PipelineProgressEvent);
       } else if (data.noti_id) {
         onNotification(data as NotificationOut);
       }
