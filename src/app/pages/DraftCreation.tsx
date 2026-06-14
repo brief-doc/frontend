@@ -42,11 +42,17 @@ export default function DraftCreation() {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // 결재권자 목록 로드 (결재권자 역할만 필터)
+  // 결재권자 목록 로드 (결재권자 역할 + 본인 제외)
   useEffect(() => {
+    const raw = sessionStorage.getItem("user_session");
+    const currentUserId: number | undefined = raw ? JSON.parse(raw)?.id : undefined;
     getUsersAPI()
       .then((users) =>
-        setApproverList(users.filter((u) => u.roles.includes("결재권자")))
+        setApproverList(
+          users.filter(
+            (u) => u.roles.includes("결재권자") && u.id !== currentUserId
+          )
+        )
       )
       .catch(() => { /* 무시 */ });
   }, []);
