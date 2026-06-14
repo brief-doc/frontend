@@ -1,8 +1,11 @@
 import api from "../../lib/api";
 import type {
-  DraftListItem,
-  DraftDetail,
+  ApprovalDetail,
+  ApprovalListItem,
+  DecisionParams,
   DraftCreateParams,
+  DraftDetail,
+  DraftListItem,
   DraftUpdateParams,
 } from "@/types/draft";
 
@@ -63,4 +66,28 @@ export async function updateDraft(
 
 export async function cancelDraft(draftId: number): Promise<void> {
   await api.delete(`/drafts/${draftId}`);
+}
+
+export async function getApprovalList(params?: {
+  skip?: number;
+  limit?: number;
+}): Promise<{ items: ApprovalListItem[]; total_count: number; page: number; limit: number }> {
+  const query = new URLSearchParams();
+  if (params?.skip != null) query.set("skip", String(params.skip));
+  if (params?.limit != null) query.set("limit", String(params.limit));
+  const res = await api.get(`/drafts/approvals/?${query}`);
+  return res.data;
+}
+
+export async function getApprovalDetail(draftId: number): Promise<ApprovalDetail> {
+  const res = await api.get(`/drafts/approvals/${draftId}`);
+  return res.data;
+}
+
+export async function postDecision(
+  draftId: number,
+  params: DecisionParams,
+): Promise<DraftDetail> {
+  const res = await api.post(`/drafts/${draftId}/decision`, params);
+  return res.data;
 }
