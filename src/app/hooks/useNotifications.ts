@@ -6,6 +6,7 @@ import {
   linkToRoute,
   relativeTime,
   type NotificationOut,
+  type PipelineProgressEvent,
 } from "../api/notification";
 
 export interface NotificationItem {
@@ -22,7 +23,9 @@ export interface NotificationItem {
  * - SSE 구독으로 실시간 수신
  * - latest: 가장 최근에 수신된 알림 (컴포넌트가 SSE 이벤트에 반응할 때 활용)
  */
-export function useNotifications() {
+export function useNotifications(
+  onPipelineProgress?: (event: PipelineProgressEvent) => void,
+) {
   const [items, setItems] = useState<NotificationOut[]>([]);
   const [latest, setLatest] = useState<NotificationOut | null>(null);
 
@@ -35,11 +38,17 @@ export function useNotifications() {
 
   // SSE 실시간 구독
   useEffect(() => {
-    const es = subscribeSSE((noti) => {
-      setItems((prev) => [noti, ...prev]);
-      setLatest(noti);
-    });
+    const es = subscribeSSE(
+      (noti) => {
+        setItems((prev) => [noti, ...prev]);
+        setLatest(noti);
+      },
+      undefined,
+      onPipelineProgress,
+    );
     return () => es.close();
+  // onPipelineProgress는 렌더마다 새 함수가 생성되면 재구독되므로 의도적으로 의존성 제외
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // 읽음 처리
