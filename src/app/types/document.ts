@@ -24,5 +24,26 @@ export interface DocDetailResponse{
 export interface DocUpdateParams {
   title?: string;
   category?: string;
-  summary?: string;  
+  summary?: string;
+}
+
+// UI 목록용 (toDocItem 변환 결과)
+export interface DocItem {
+  id: number;
+  title: string;
+  category: string;
+  date: string;
+  status: string;
+}
+
+// UI 상세용 (toDocDetailItem 변환 결과)
+export interface DocDetailItem {
+  id: number;
+  title: string;
+  category: string;
+  date: string;
+  status: string;
+  summary: string;
+  content: string;
+  fileType: string;
 }

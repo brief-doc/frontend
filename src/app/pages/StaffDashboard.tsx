@@ -11,10 +11,11 @@ import {
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import ConfirmModal from "../components/ui/confirm-modal";
-import { StatusBadge } from "../components/StatusBadge";
 import { FileSearch, FileText, Plus } from "lucide-react";
 import { getDocumentList, toDocItem, deletedDocument } from "../api/document";
-import type {DocItem } from "@/types/document";
+import type { DocItem } from "../types/document";
+import { getDraftList, formatDate, mapStatusLabel } from "../api/draft";
+import type { DraftListItem } from "../types/draft";
 
 interface StaffDashboardProps {
   userRole?: string;
@@ -26,28 +27,7 @@ export default function StaffDashboard({ userRole, showApproverMenu, showAdminMe
   const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState("all");
   const [sortOrder, setSortOrder] = useState("latest");
-
-
-  const drafts = [
-    {
-      id: 1,
-      title: "데이터 결합 가이드 검토",
-      date: "2026.06.01",
-      status: "approved" as const,
-    },
-    {
-      id: 2,
-      title: "가명정보 처리 승인 요청",
-      date: "2026.06.01",
-      status: "pending" as const,
-    },
-    {
-      id: 3,
-      title: "감사원 처분요구서 대응",
-      date: "2026.05.30",
-      status: "rejected" as const,
-    },
-  ];
+  const [drafts, setDrafts] = useState<DraftListItem[]>([]);
 
   const notifications = [
     {
@@ -109,13 +89,27 @@ export default function StaffDashboard({ userRole, showApproverMenu, showAdminMe
   // 하단 페이징 블록 계산 
   const totalPages = Math.ceil(totalCount / LIMIT);
 
-  const filteredDrafts = drafts
-    .filter((d) => statusFilter === "all" || d.status === statusFilter)
-    .sort((a, b) => {
-      if (sortOrder === "latest") return b.date.localeCompare(a.date);
-      if (sortOrder === "oldest") return a.date.localeCompare(b.date);
-      return a.title.localeCompare(b.title);
-    });
+  const SORT_MAP: Record<string, string> = {
+    latest: "created_at",
+    oldest: "asc",
+    title: "title",
+  };
+
+  useEffect(() => {
+    const fetchDrafts = async () => {
+      try {
+        const data = await getDraftList({
+          status: statusFilter === "all" ? undefined : statusFilter,
+          sort_by: SORT_MAP[sortOrder] ?? "created_at",
+          limit: 3,
+        });
+        setDrafts(data.items);
+      } catch {
+        toast.error("기안 목록을 불러오지 못했습니다.");
+      }
+    };
+    fetchDrafts();
+  }, [statusFilter, sortOrder]);
 
   // 💡 1. 모달의 열림 상태와 현재 선택된 문서 ID를 관리할 State 추가
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -238,6 +232,7 @@ export default function StaffDashboard({ userRole, showApproverMenu, showAdminMe
                     className="px-3 py-1.5 text-sm border border-border rounded-md bg-input-background focus:outline-none focus:ring-2 focus:ring-ring"
                   >
                     <option value="all">전체</option>
+                    <option value="draft">임시저장</option>
                     <option value="pending">대기</option>
                     <option value="approved">승인</option>
                     <option value="rejected">반려</option>
@@ -255,25 +250,47 @@ export default function StaffDashboard({ userRole, showApproverMenu, showAdminMe
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {filteredDrafts.map((draft) => (
-                    <div
-                      key={draft.id}
-                      className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
-                      onClick={() =>
-                        navigate(`/draft/view/${draft.id}`)
-                      }
-                    >
-                      <div className="flex-1">
-                        <h4 className="font-medium text-foreground">
-                          {draft.title}
-                        </h4>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {draft.date}
-                        </p>
+                  {drafts.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-6">
+                      기안이 없습니다.
+                    </p>
+                  ) : (
+                    drafts.map((draft) => (
+                      <div
+                        key={draft.draft_id}
+                        className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
+                        onClick={() => navigate(`/draft/view/${draft.draft_id}`)}
+                      >
+                        <div className="flex-1">
+                          <h4 className="font-medium text-foreground">{draft.title}</h4>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {formatDate(draft.created_at)}
+                          </p>
+                        </div>
+                        <Badge
+                          className={{
+                            draft:    "bg-muted text-muted-foreground border-transparent",
+                            pending:  "bg-[var(--status-pending)] text-white border-transparent",
+                            approved: "bg-[var(--status-approved)] text-white border-transparent",
+                            rejected: "bg-[var(--status-rejected)] text-white border-transparent",
+                            canceled: "bg-muted text-muted-foreground border-transparent",
+                          }[draft.status] ?? ""}
+                        >
+                          {mapStatusLabel(draft.status)}
+                        </Badge>
                       </div>
-                      <StatusBadge status={draft.status} />
-                    </div>
-                  ))}
+                    ))
+                  )}
+                </div>
+                <div className="mt-4 pt-3 border-t border-border">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full text-muted-foreground hover:text-foreground"
+                    onClick={() => navigate("/draft/list")}
+                  >
+                    전체 기안 보기 →
+                  </Button>
                 </div>
               </CardContent>
             </Card>
