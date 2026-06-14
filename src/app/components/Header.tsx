@@ -13,8 +13,9 @@ interface HeaderProps {
     message: string;
     time: string;
     unread: boolean;
-    link?: string;
+    link?: string | null;
   }>;
+  onMarkNotificationRead?: (id: number) => void;
   showUser?: boolean;
   showAdminMenu?: boolean;
   showApproverMenu?: boolean;
@@ -25,6 +26,7 @@ export function Header({
   userName = "사용자",
   userRole = "담당자",
   notifications = [],
+  onMarkNotificationRead,
   showUser = true,
   showAdminMenu = false,
   showApproverMenu = false,
@@ -99,9 +101,11 @@ export function Header({
           <NotificationDropdown
             notifications={notifications}
             count={notificationCount}
+            onMarkRead={onMarkNotificationRead}
           />
 
-          <div className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted rounded-md px-2 py-1 transition-colors"
+          <div
+            className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted rounded-md px-2 py-1 transition-colors"
             onClick={() => navigate("/mypage")}
           >
             <span className="text-foreground">

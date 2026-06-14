@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router";
 import { Header } from "../components/Header";
+import { useNotifications } from "../hooks/useNotifications";
 import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
@@ -64,6 +65,8 @@ export default function DraftView() {
     }
   };
 
+  const { notifications, markRead } = useNotifications();
+
   const rawData = sessionStorage.getItem("user_session");
   const sessionData = rawData ? JSON.parse(rawData) : null;
 
@@ -91,6 +94,8 @@ export default function DraftView() {
       <Header
         userName={sessionData?.name ?? "사용자"}
         userRole={sessionData?.roles?.[0] ?? "실무 담당자"}
+        notifications={notifications}
+        onMarkNotificationRead={markRead}
       />
 
       <div className="border-b border-border px-6 py-4 bg-white">
