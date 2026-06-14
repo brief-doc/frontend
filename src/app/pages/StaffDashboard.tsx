@@ -304,7 +304,7 @@ export default function StaffDashboard({ userRole, showApproverMenu, showAdminMe
                       새로운 알림이 없습니다
                     </p>
                   ) : (
-                    notifications.slice(0, 5).map((notif) => (
+                    notifications.slice(0, 3).map((notif) => (
                       <div
                         key={notif.id}
                         className="flex gap-3 p-3 border border-border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
