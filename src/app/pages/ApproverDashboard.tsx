@@ -27,18 +27,18 @@ function formatDateTime(iso: string): string {
 export default function ApproverDashboard() {
   const navigate = useNavigate();
 
-  // ── 목록 상태 ──────────────────────────────────────────────────────────────
+  // 목록 상태
   const [approvalList, setApprovalList] = useState<ApprovalListItem[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [page, setPage] = useState(1);
   const [loadingList, setLoadingList] = useState(false);
 
-  // ── 상세 상태 ───────────────────────────────��──────────────────��───────────
+  // 상세 상태
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [detail, setDetail] = useState<ApprovalDetail | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
 
-  // ── 결재 처리 상태 ───────────��─────────────────────────────────────────────
+  // 결재 처리 상태
   const [deciding, setDeciding] = useState(false);
   const [showApproveModal, setShowApproveModal] = useState(false);
   const [showRejectForm, setShowRejectForm] = useState(false);
@@ -47,7 +47,7 @@ export default function ApproverDashboard() {
   const rawData = sessionStorage.getItem("user_session");
   const sessionData = rawData ? JSON.parse(rawData) : null;
 
-  // ── 목록 로드 ────���─────────────────────────────────────────────────────────
+  // 목록 로드
   const fetchList = useCallback(async () => {
     setLoadingList(true);
     try {
@@ -61,7 +61,7 @@ export default function ApproverDashboard() {
         setDetail(null);
       }
     } catch {
-      toast.error("결재 목록을 불러오지 못했��니다.");
+      toast.error("결재 목록을 불러오지 못했습니다.");
     } finally {
       setLoadingList(false);
     }
@@ -71,7 +71,7 @@ export default function ApproverDashboard() {
     fetchList();
   }, [page]);
 
-  // ── 상세 로드 ��─────────────────────────────────────────────────────────────
+  // 상세 로드
   useEffect(() => {
     if (!selectedId) return;
     setLoadingDetail(true);
@@ -84,7 +84,7 @@ export default function ApproverDashboard() {
       .finally(() => setLoadingDetail(false));
   }, [selectedId]);
 
-  // ── 승인 처리 ───────────────────���─────────────────────────────��────────────
+  // 승인 처리
   const handleApproveConfirm = async () => {
     if (!selectedId) return;
     setDeciding(true);
@@ -103,7 +103,7 @@ export default function ApproverDashboard() {
     }
   };
 
-  // ── 반려 처리 ───────────────��──────────────────────────────────────────────
+  // 반려 처리
   const handleRejectConfirm = async () => {
     if (!selectedId) return;
     if (!rejectReason.trim()) {
@@ -113,14 +113,14 @@ export default function ApproverDashboard() {
     setDeciding(true);
     try {
       await postDecision(selectedId, { action: "rejected", reject_reason: rejectReason });
-      toast.success("기���이 반려되었습니다.");
+      toast.success("기안이 반려되었습니다.");
       setShowRejectForm(false);
       setRejectReason("");
       setSelectedId(null);
       setDetail(null);
       await fetchList();
     } catch {
-      toast.error("반려 처리 중 오류가 ���생했습니다.");
+      toast.error("반려 처리 중 오류가 발생했습니다.");
     } finally {
       setDeciding(false);
     }
@@ -221,7 +221,7 @@ export default function ApproverDashboard() {
             <Card>
               {!selectedId ? (
                 <CardContent className="py-16 text-center text-muted-foreground text-sm">
-                  좌측 목록에서 ��안을 선택해주세요
+                  좌측 목록에서 기안을 선택해주세요
                 </CardContent>
               ) : loadingDetail ? (
                 <CardContent className="py-16 text-center text-muted-foreground text-sm">
@@ -298,7 +298,7 @@ export default function ApproverDashboard() {
                     ) : (
                       <div className="space-y-4 pt-4 border-t border-border">
                         <div className="space-y-2">
-                          <Label htmlFor="reject-reason">반��� 사유</Label>
+                          <Label htmlFor="reject-reason">반려 사유</Label>
                           <Textarea
                             id="reject-reason"
                             value={rejectReason}
