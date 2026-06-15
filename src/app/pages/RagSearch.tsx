@@ -1,166 +1,263 @@
-import React, { useState } from "react"; 
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router";
 import { Header } from "../components/Header";
 import { Button } from "../components/ui/button";
-import { Input } from "../components/ui/input";
 import { Badge } from "../components/ui/badge";
-import { ArrowLeft, Send, Sparkles } from "lucide-react";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "../components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "../components/ui/sheet";
+import { ArrowLeft, Send, Sparkles, Loader2 } from "lucide-react";
+import { useNotifications } from "../hooks/useNotifications";
+import { streamQuery, type RagReference } from "../api/rag";
+
+// ── 타입 ──────────────────────────────────────────────────────────────────────
+
+interface UserMessage {
+  role: "user";
+  content: string;
+}
+
+interface AiMessage {
+  role: "ai";
+  content: string;       // 스트리밍 중 누적 토큰
+  streaming: boolean;
+  references: RagReference[];
+  elapsed?: number;      // ms
+}
+
+type ChatMessage = UserMessage | AiMessage;
+
+// ── 소스 칩 ──────────────────────────────────────────────────────────────────
+
+function SourceChip({
+  source,
+  onClick,
+}: {
+  source: RagReference;
+  onClick: () => void;
+}) {
+  const isLaw = source.category.includes("법령") || source.category.includes("조례");
+  return (
+    <button
+      onClick={onClick}
+      className="inline-flex items-center gap-2 px-3 py-1.5 bg-muted hover:bg-muted/80 border border-border rounded-full text-sm transition-colors"
+    >
+      <span>{isLaw ? "⚖" : "📄"}</span>
+      <span className="text-foreground">
+        {source.doc_name}
+        {source.page ? ` · ${source.page}` : ""}
+      </span>
+    </button>
+  );
+}
+
+// ── AI 메시지 버블 ────────────────────────────────────────────────────────────
+
+function AiBubble({
+  msg,
+  onSourceClick,
+}: {
+  msg: AiMessage;
+  onSourceClick: (ref: RagReference) => void;
+}) {
+  return (
+    <div className="flex gap-3">
+      <div className="size-8 bg-primary/10 rounded-full flex items-center justify-center shrink-0 mt-1">
+        {msg.streaming ? (
+          <Loader2 className="size-4 text-primary animate-spin" />
+        ) : (
+          <Sparkles className="size-4 text-primary" />
+        )}
+      </div>
+      <div className="flex-1 space-y-3">
+        <div className="bg-white border border-border rounded-lg px-4 py-3">
+          <p className="text-foreground whitespace-pre-wrap leading-relaxed">
+            {msg.content}
+            {msg.streaming && (
+              <span className="inline-block w-0.5 h-4 bg-primary animate-pulse ml-0.5 align-middle" />
+            )}
+          </p>
+        </div>
+
+        {!msg.streaming && msg.references.length > 0 && (
+          <>
+            <p className="text-xs text-muted-foreground flex items-center gap-1">
+              <span>⚡</span>
+              근거 {msg.references.length}건
+              {msg.elapsed != null && ` · 로컬 DB에서 ${(msg.elapsed / 1000).toFixed(1)}초`}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {msg.references.map((ref, i) => (
+                <SourceChip key={i} source={ref} onClick={() => onSourceClick(ref)} />
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── 메인 페이지 ───────────────────────────────────────────────────────────────
 
 export default function RagSearch() {
   const navigate = useNavigate();
-  const [message, setMessage] = useState("");
-  const [selectedSource, setSelectedSource] = useState<number | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [input, setInput] = useState("");
+  const [streaming, setStreaming] = useState(false);
+  const [selectedRef, setSelectedRef] = useState<RagReference | null>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const cancelRef = useRef<(() => void) | null>(null);
 
-  const messages = [
-    {
-      type: "user",
-      content: "가명정보 결합 시 안전성 확보 조치는 무엇인가요?",
-    },
-    {
-      type: "ai",
-      content: [
-        "○ 결합전문기관을 통해 결합 수행",
-        "○ 결합키 생성·관리 주체 분리",
-        "○ 접속기록 1년 이상 보관",
-        "○ 반출 전 가명처리 적정성 검토",
-      ],
-      sources: [
-        {
-          id: 1,
-          title: "가명정보 처리 가이드라인",
-          page: 142,
-          type: "document",
-        },
-        {
-          id: 2,
-          title: "가명정보 처리 가이드라인",
-          page: 151,
-          type: "document",
-        },
-        { id: 3, title: "강남구 데이터 조례", page: "제12조", type: "law" },
-      ],
-      metadata: "근거 3건 · 로컬 DB에서 0.8초",
-    },
-  ];
+  const rawData = sessionStorage.getItem("user_session");
+  const sessionData = rawData ? JSON.parse(rawData) : null;
 
-  const sourceDetails = {
-    title: "가명정보 처리 가이드라인",
-    page: "p.142 · 제5장 안전성 확보 조치",
-    chunkId: "#142-3",
-    similarity: "0.89",
-    content: [
-      "가명정보의 결합은 개인정보 보호법 제28조의3에 따라 보호위원회가 지정한 결합전문기관을 통해 수행되어야 한다. 이는 가명정보의 안전한 처리를 위한 필수 조치이다.",
-      "결합전문기관은 결합키의 생성 및 관리 주체를 분리하여야 하며, 모든 접속기록을 1년 이상 보관하여야 한다. 또한 결합된 정보의 반출 전에는 반드시 가명처리의 적정성을 검토하여야 한다.",
-    ],
-    highlights: ["보호위원회가 지정한 결합전문기관", "접속기록을 1년 이상 보관"],
-  };
+  const { notifications, markRead } = useNotifications();
+
+  // 메시지 추가 시 자동 스크롤
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const sendMessage = useCallback(() => {
+    const question = input.trim();
+    if (!question || streaming) return;
+
+    setInput("");
+    setStreaming(true);
+
+    // 1. 사용자 메시지 추가
+    const userMsg: UserMessage = { role: "user", content: question };
+    // 2. AI 플레이스홀더 추가
+    const aiMsg: AiMessage = { role: "ai", content: "", streaming: true, references: [] };
+
+    setMessages((prev) => [...prev, userMsg, aiMsg]);
+
+    const startedAt = Date.now();
+
+    // 3. SSE 스트리밍 시작
+    const cancel = streamQuery(question, (event) => {
+      if (event.type === "token") {
+        setMessages((prev) => {
+          const next = [...prev];
+          const last = next[next.length - 1] as AiMessage;
+          return [...next.slice(0, -1), { ...last, content: last.content + event.content }];
+        });
+      } else if (event.type === "sources") {
+        setMessages((prev) => {
+          const next = [...prev];
+          const last = next[next.length - 1] as AiMessage;
+          return [
+            ...next.slice(0, -1),
+            {
+              ...last,
+              references: event.references,
+              elapsed: Date.now() - startedAt,
+            },
+          ];
+        });
+      } else if (event.type === "done") {
+        setMessages((prev) => {
+          const next = [...prev];
+          const last = next[next.length - 1] as AiMessage;
+          return [...next.slice(0, -1), { ...last, streaming: false }];
+        });
+        setStreaming(false);
+      } else if (event.type === "error") {
+        setMessages((prev) => {
+          const next = [...prev];
+          const last = next[next.length - 1] as AiMessage;
+          return [
+            ...next.slice(0, -1),
+            { ...last, content: event.content, streaming: false },
+          ];
+        });
+        setStreaming(false);
+      }
+    });
+
+    cancelRef.current = cancel;
+  }, [input, streaming]);
+
+  // 언마운트 시 SSE 정리
+  useEffect(() => {
+    return () => cancelRef.current?.();
+  }, []);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <Header userName="김주무관" userRole="실무 담당자" notificationCount={2} />
+      <Header
+        userName={sessionData?.name ?? "사용자"}
+        userRole={sessionData?.roles?.[0] ?? "실무 담당자"}
+        notifications={notifications}
+        notificationCount={notifications.filter((n) => n.unread).length}
+        onMarkNotificationRead={markRead}
+      />
 
+      {/* 상단 바 */}
       <div className="border-b border-border px-6 py-4 bg-white">
         <div className="flex items-center gap-3">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate("/staff/dashboard")}
-          >
+          <Button variant="ghost" size="icon" onClick={() => navigate("/staff/dashboard")}>
             <ArrowLeft className="size-5" />
           </Button>
           <h2 className="text-lg font-medium">가이드라인 질의 (RAG)</h2>
-          <Badge
-            variant="outline"
-            className="bg-muted border-border text-muted-foreground"
-          >
+          <Badge variant="outline" className="bg-muted border-border text-muted-foreground">
             🔒 폐쇄망
           </Badge>
         </div>
       </div>
 
+      {/* 채팅 영역 */}
       <div className="flex-1 overflow-y-auto px-6 py-6">
         <div className="max-w-4xl mx-auto space-y-6">
-          {messages.map((msg, idx) => (
-            <div key={idx}>
-              {msg.type === "user" ? (
-                <div className="flex justify-end">
-                  <div className="bg-primary/10 text-foreground rounded-lg px-4 py-3 max-w-2xl">
-                    <p>{msg.content}</p>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex gap-3">
-                  <div className="size-8 bg-primary/10 rounded-full flex items-center justify-center shrink-0 mt-1">
-                    <Sparkles className="size-4 text-primary" />
-                  </div>
-                  <div className="flex-1 space-y-3">
-                    <div className="bg-white border border-border rounded-lg px-4 py-3">
-                      <div className="space-y-2">
-                        {Array.isArray(msg.content) ? (
-                          msg.content.map((line, i) => (
-                            <p key={i} className="text-foreground">
-                              {line}
-                            </p>
-                          ))
-                        ) : (
-                          <p className="text-foreground">{msg.content}</p>
-                        )}
-                      </div>
-                    </div>
-
-                    {msg.metadata && (
-                      <p className="text-xs text-muted-foreground flex items-center gap-1">
-                        <span>⚡</span>
-                        {msg.metadata}
-                      </p>
-                    )}
-
-                    {msg.sources && (
-                      <div className="flex flex-wrap gap-2">
-                        {msg.sources.map((source) => (
-                          <button
-                            key={source.id}
-                            onClick={() => setSelectedSource(source.id)}
-                            className="inline-flex items-center gap-2 px-3 py-1.5 bg-muted hover:bg-muted/80 border border-border rounded-full text-sm transition-colors"
-                          >
-                            <span>{source.type === "law" ? "⚖" : "📄"}</span>
-                            <span className="text-foreground">
-                              {source.title} · {source.page}
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
+          {messages.length === 0 && (
+            <div className="text-center py-16 space-y-3">
+              <div className="size-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
+                <Sparkles className="size-6 text-primary" />
+              </div>
+              <p className="text-muted-foreground text-sm">
+                법령·가이드라인에 대해 무엇이든 질문하세요
+              </p>
             </div>
-          ))}
+          )}
+
+          {messages.map((msg, idx) =>
+            msg.role === "user" ? (
+              <div key={idx} className="flex justify-end">
+                <div className="bg-primary/10 text-foreground rounded-lg px-4 py-3 max-w-2xl">
+                  <p>{msg.content}</p>
+                </div>
+              </div>
+            ) : (
+              <AiBubble key={idx} msg={msg} onSourceClick={setSelectedRef} />
+            ),
+          )}
+
+          <div ref={bottomRef} />
         </div>
       </div>
 
+      {/* 입력 영역 */}
       <div className="border-t border-border bg-white px-6 py-4">
         <div className="max-w-4xl mx-auto space-y-3">
           <div className="flex gap-2">
-            <Input
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
+            <textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
               placeholder="질문을 입력하세요..."
-              className="flex-1 bg-input-background"
+              rows={1}
+              className="flex-1 resize-none rounded-md border border-input bg-input-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  setMessage("");
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  sendMessage();
                 }
               }}
             />
-            <Button>
-              <Send className="size-4" />
+            <Button onClick={sendMessage} disabled={streaming || !input.trim()}>
+              {streaming ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Send className="size-4" />
+              )}
             </Button>
           </div>
           <p className="text-xs text-muted-foreground text-center">
@@ -169,71 +266,54 @@ export default function RagSearch() {
         </div>
       </div>
 
-      <Sheet
-        open={selectedSource !== null}
-        onOpenChange={(open) => !open && setSelectedSource(null)}
-      >
-        <SheetContent className="w-[600px] sm:max-w-[600px]">
-          <SheetHeader>
-            <SheetTitle className="flex items-center gap-2">
-              <span>📄</span>
-              <div className="flex-1">
-                <div className="font-medium">{sourceDetails.title}</div>
-                <div className="text-sm font-normal text-muted-foreground">
-                  {sourceDetails.page}
+      {/* 참고 문서 상세 패널 */}
+      <Sheet open={selectedRef !== null} onOpenChange={(open) => !open && setSelectedRef(null)}>
+        <SheetContent className="w-[560px] sm:max-w-[560px] overflow-y-auto">
+          {selectedRef && (
+            <>
+              <SheetHeader>
+                <SheetTitle className="flex items-start gap-2">
+                  <span className="mt-0.5">📄</span>
+                  <div className="flex-1">
+                    <div className="font-medium">{selectedRef.doc_name}</div>
+                    {selectedRef.page && (
+                      <div className="text-sm font-normal text-muted-foreground">
+                        p.{selectedRef.page}
+                      </div>
+                    )}
+                  </div>
+                </SheetTitle>
+              </SheetHeader>
+
+              <div className="mt-6 space-y-4">
+                {selectedRef.category && (
+                  <Badge variant="outline" className="text-muted-foreground">
+                    {selectedRef.category}
+                  </Badge>
+                )}
+
+                <div className="text-sm leading-relaxed text-foreground bg-muted/40 border border-border rounded-lg p-4 whitespace-pre-wrap">
+                  {selectedRef.snippet}
+                </div>
+
+                <div className="flex gap-3 pt-4 border-t border-border">
+                  <Button
+                    className="flex-1"
+                    onClick={() =>
+                      navigate("/draft/new", {
+                        state: {
+                          sourceDocName: selectedRef.doc_name,
+                          sourceSummary: selectedRef.snippet,
+                        },
+                      })
+                    }
+                  >
+                    📄 기안 근거로 추가 ↗
+                  </Button>
                 </div>
               </div>
-            </SheetTitle>
-          </SheetHeader>
-
-          <div className="mt-6 space-y-4">
-            <div className="flex items-center gap-3 text-sm">
-              <Badge variant="outline" className="text-muted-foreground">
-                🗄 청크 {sourceDetails.chunkId}
-              </Badge>
-              <Badge variant="outline" className="text-muted-foreground">
-                유사도 {sourceDetails.similarity}
-              </Badge>
-              <Badge variant="secondary">샘플 데이터</Badge>
-            </div>
-
-            <div className="space-y-4 text-sm leading-relaxed">
-              {sourceDetails.content.map((paragraph, idx) => (
-                <p key={idx} className="text-foreground">
-                  {paragraph.split(/(보호위원회가 지정한 결합전문기관|접속기록을 1년 이상 보관)/).map((part, i) =>
-                    sourceDetails.highlights.includes(part) ? (
-                      <mark
-                        key={i}
-                        className="bg-yellow-200/60 px-0.5 rounded"
-                      >
-                        {part}
-                      </mark>
-                    ) : (
-                      <span key={i}>{part}</span>
-                    )
-                  )}
-                </p>
-              ))}
-            </div>
-
-            <div className="pt-2 pb-4">
-              <p className="text-xs text-muted-foreground">
-                🖍 강조 구간 = 답변이 근거로 인용한 부분
-              </p>
-            </div>
-
-            <div className="flex gap-3 pt-4 border-t border-border">
-              <Button
-                className="flex-1"
-                onClick={() => navigate("/draft/new")}
-              >
-                📄 기안 근거로 추가 ↗
-              </Button>
-              <Button variant="outline" className="flex-1">
-                🔗 PDF 원문 열기
-              </Button>
-            </div>
-          </div>
+            </>
+          )}
         </SheetContent>
       </Sheet>
     </div>
