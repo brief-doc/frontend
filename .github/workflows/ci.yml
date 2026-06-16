@@ -1,8 +1,8 @@
 name: CI
 on:
   push:
-    branches: [main] # main 푸시 때만
-  pull_request: # 모든 PR
+    branches: [main, dev]
+  pull_request:
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -17,7 +17,7 @@ jobs:
 
   notify-docker:
     needs: build
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')
     runs-on: ubuntu-latest
     steps:
       - name: Trigger submodule bump
