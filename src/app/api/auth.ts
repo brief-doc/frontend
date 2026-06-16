@@ -131,6 +131,7 @@ export interface UserListItem {
     roles: string[];
     user_login: string | null;
     user_create: string | null;
+    is_deleted: boolean; // - Added to represent activation status
 }
 
 export async function getUsersAPI(): Promise<UserListItem[]> {
@@ -172,5 +173,29 @@ export async function forceLogoutUserAPI(userId: number): Promise<void> {
     if (!response.ok) {
         const error = await response.json().catch(() => null);
         throw new Error(error?.detail || "로그아웃 처리에 실패했습니다.");
+    }
+}
+
+export async function toggleUserActivationAPI(userId: number, targetDeletedStatus: boolean) {
+    try {
+        // Crucial: Matches your FastAPI router prefix "/auth" and endpoint structure
+        const response = await fetch(`${API_BASE_URL}/auth/users/${userId}/activation`, {
+            method: "PATCH",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            credentials: "include",
+            body: JSON.stringify({ is_deleted: targetDeletedStatus }),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.detail || "사용자 상태 변경 처리에 실패했습니다.");
+        }
+
+        return await response.json();
+    } catch (error: any) {
+        console.error("toggleUserActivationAPI Error:", error);
+        throw error;
     }
 }

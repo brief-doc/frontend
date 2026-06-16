@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
-import { AdminLayout } from "../components/AdminLayout";
+import { MainLayout } from "../components/MainLayout";
 import {
   Card,
   CardContent,
@@ -29,6 +29,8 @@ export default function UserActivity() {
   const rawData = sessionStorage.getItem('user_session');
   const sessionData = rawData ? JSON.parse(rawData) : null;
   const myRoles: string[] = sessionData?.roles ?? [];
+
+  const me = sessionData ? { name: sessionData.name, roles: myRoles } : null;
 
   // 로그인한 사람이 '관리자'이고 URL 패러미터에 특정 userId가 붙어있다면 관리자 상세 뷰로 판정
   const isAdminView = myRoles.includes("관리자") && userId;
@@ -242,7 +244,7 @@ export default function UserActivity() {
 
   // 조건부 레이아웃 렌더링 스위치
   if (isAdminView) {
-    return <AdminLayout>{MainContent}</AdminLayout>;
+    return <MainLayout currentUser={me}>{MainContent}</MainLayout>;
   } else {
     return <div className="p-8 bg-background min-h-screen">{MainContent}</div>;
   }

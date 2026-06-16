@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router";
-import { Header } from "../components/Header";
+import { MainLayout } from "../components/MainLayout";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "../components/ui/sheet";
@@ -183,139 +183,134 @@ export default function RagSearch() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <Header
-        userName={sessionData?.name ?? "사용자"}
-        userRole={sessionData?.roles?.[0] ?? "실무 담당자"}
-        notifications={notifications}
-        notificationCount={notifications.filter((n) => n.unread).length}
-        onMarkNotificationRead={markRead}
-      />
+    <MainLayout>
+      <div className="min-h-screen bg-background flex flex-col">
 
-      {/* 상단 바 */}
-      <div className="border-b border-border px-6 py-4 bg-white">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/staff/dashboard")}>
-            <ArrowLeft className="size-5" />
-          </Button>
-          <h2 className="text-lg font-medium">가이드라인 질의 (RAG)</h2>
-          <Badge variant="outline" className="bg-muted border-border text-muted-foreground">
-            🔒 폐쇄망
-          </Badge>
-        </div>
-      </div>
-
-      {/* 채팅 영역 */}
-      <div className="flex-1 overflow-y-auto px-6 py-6">
-        <div className="max-w-4xl mx-auto space-y-6">
-          {messages.length === 0 && (
-            <div className="text-center py-16 space-y-3">
-              <div className="size-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
-                <Sparkles className="size-6 text-primary" />
-              </div>
-              <p className="text-muted-foreground text-sm">
-                법령·가이드라인에 대해 무엇이든 질문하세요
-              </p>
-            </div>
-          )}
-
-          {messages.map((msg, idx) =>
-            msg.role === "user" ? (
-              <div key={idx} className="flex justify-end">
-                <div className="bg-primary/10 text-foreground rounded-lg px-4 py-3 max-w-2xl">
-                  <p>{msg.content}</p>
-                </div>
-              </div>
-            ) : (
-              <AiBubble key={idx} msg={msg} onSourceClick={setSelectedRef} />
-            ),
-          )}
-
-          <div ref={bottomRef} />
-        </div>
-      </div>
-
-      {/* 입력 영역 */}
-      <div className="border-t border-border bg-white px-6 py-4">
-        <div className="max-w-4xl mx-auto space-y-3">
-          <div className="flex gap-2">
-            <textarea
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="질문을 입력하세요..."
-              rows={1}
-              className="flex-1 resize-none rounded-md border border-input bg-input-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  sendMessage();
-                }
-              }}
-            />
-            <Button onClick={sendMessage} disabled={streaming || !input.trim()}>
-              {streaming ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Send className="size-4" />
-              )}
+        {/* 상단 바 */}
+        <div className="border-b border-border px-6 py-4 bg-white">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" onClick={() => navigate("/staff/dashboard")}>
+              <ArrowLeft className="size-5" />
             </Button>
+            <h2 className="text-lg font-medium">가이드라인 질의 (RAG)</h2>
+            <Badge variant="outline" className="bg-muted border-border text-muted-foreground">
+              🔒 폐쇄망
+            </Badge>
           </div>
-          <p className="text-xs text-muted-foreground text-center">
-            🔒 모든 질의는 외부 전송 없이 폐쇄망 내부에서만 처리됩니다
-          </p>
         </div>
-      </div>
 
-      {/* 참고 문서 상세 패널 */}
-      <Sheet open={selectedRef !== null} onOpenChange={(open) => !open && setSelectedRef(null)}>
-        <SheetContent className="w-[560px] sm:max-w-[560px] overflow-y-auto">
-          {selectedRef && (
-            <>
-              <SheetHeader>
-                <SheetTitle className="flex items-start gap-2">
-                  <span className="mt-0.5">📄</span>
-                  <div className="flex-1">
-                    <div className="font-medium">{selectedRef.doc_name}</div>
-                    {selectedRef.page && (
-                      <div className="text-sm font-normal text-muted-foreground">
-                        p.{selectedRef.page}
-                      </div>
-                    )}
-                  </div>
-                </SheetTitle>
-              </SheetHeader>
-
-              <div className="mt-6 space-y-4">
-                {selectedRef.category && (
-                  <Badge variant="outline" className="text-muted-foreground">
-                    {selectedRef.category}
-                  </Badge>
-                )}
-
-                <div className="text-sm leading-relaxed text-foreground bg-muted/40 border border-border rounded-lg p-4 whitespace-pre-wrap">
-                  {selectedRef.snippet}
+        {/* 채팅 영역 */}
+        <div className="flex-1 overflow-y-auto px-6 py-6">
+          <div className="max-w-4xl mx-auto space-y-6">
+            {messages.length === 0 && (
+              <div className="text-center py-16 space-y-3">
+                <div className="size-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
+                  <Sparkles className="size-6 text-primary" />
                 </div>
-
-                <div className="flex gap-3 pt-4 border-t border-border">
-                  <Button
-                    className="flex-1"
-                    onClick={() =>
-                      navigate("/draft/new", {
-                        state: {
-                          sourceDocName: selectedRef.doc_name,
-                          sourceSummary: selectedRef.snippet,
-                        },
-                      })
-                    }
-                  >
-                    📄 기안 근거로 추가 ↗
-                  </Button>
-                </div>
+                <p className="text-muted-foreground text-sm">
+                  법령·가이드라인에 대해 무엇이든 질문하세요
+                </p>
               </div>
-            </>
-          )}
-        </SheetContent>
-      </Sheet>
-    </div>
+            )}
+
+            {messages.map((msg, idx) =>
+              msg.role === "user" ? (
+                <div key={idx} className="flex justify-end">
+                  <div className="bg-primary/10 text-foreground rounded-lg px-4 py-3 max-w-2xl">
+                    <p>{msg.content}</p>
+                  </div>
+                </div>
+              ) : (
+                <AiBubble key={idx} msg={msg} onSourceClick={setSelectedRef} />
+              ),
+            )}
+
+            <div ref={bottomRef} />
+          </div>
+        </div>
+
+        {/* 입력 영역 */}
+        <div className="border-t border-border bg-white px-6 py-4">
+          <div className="max-w-4xl mx-auto space-y-3">
+            <div className="flex gap-2">
+              <textarea
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="질문을 입력하세요..."
+                rows={1}
+                className="flex-1 resize-none rounded-md border border-input bg-input-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                  }
+                }}
+              />
+              <Button onClick={sendMessage} disabled={streaming || !input.trim()}>
+                {streaming ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Send className="size-4" />
+                )}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground text-center">
+              🔒 모든 질의는 외부 전송 없이 폐쇄망 내부에서만 처리됩니다
+            </p>
+          </div>
+        </div>
+
+        {/* 참고 문서 상세 패널 */}
+        <Sheet open={selectedRef !== null} onOpenChange={(open) => !open && setSelectedRef(null)}>
+          <SheetContent className="w-[560px] sm:max-w-[560px] overflow-y-auto">
+            {selectedRef && (
+              <>
+                <SheetHeader>
+                  <SheetTitle className="flex items-start gap-2">
+                    <span className="mt-0.5">📄</span>
+                    <div className="flex-1">
+                      <div className="font-medium">{selectedRef.doc_name}</div>
+                      {selectedRef.page && (
+                        <div className="text-sm font-normal text-muted-foreground">
+                          p.{selectedRef.page}
+                        </div>
+                      )}
+                    </div>
+                  </SheetTitle>
+                </SheetHeader>
+
+                <div className="mt-6 space-y-4">
+                  {selectedRef.category && (
+                    <Badge variant="outline" className="text-muted-foreground">
+                      {selectedRef.category}
+                    </Badge>
+                  )}
+
+                  <div className="text-sm leading-relaxed text-foreground bg-muted/40 border border-border rounded-lg p-4 whitespace-pre-wrap">
+                    {selectedRef.snippet}
+                  </div>
+
+                  <div className="flex gap-3 pt-4 border-t border-border">
+                    <Button
+                      className="flex-1"
+                      onClick={() =>
+                        navigate("/draft/new", {
+                          state: {
+                            sourceDocName: selectedRef.doc_name,
+                            sourceSummary: selectedRef.snippet,
+                          },
+                        })
+                      }
+                    >
+                      📄 기안 근거로 추가 ↗
+                    </Button>
+                  </div>
+                </div>
+              </>
+            )}
+          </SheetContent>
+        </Sheet>
+      </div>
+    </MainLayout>
   );
 }
