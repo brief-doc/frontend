@@ -3,6 +3,7 @@ import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { NotificationDropdown } from "./NotificationDropdown";
 import { useNavigate } from "react-router";
+import { logoutAPI } from "../api/auth";
 
 interface HeaderProps {
   userName?: string;
@@ -12,8 +13,9 @@ interface HeaderProps {
     message: string;
     time: string;
     unread: boolean;
-    link?: string;
+    link?: string | null;
   }>;
+  onMarkNotificationRead?: (id: number) => void;
   showUser?: boolean;
   showAdminMenu?: boolean;
   showApproverMenu?: boolean;
@@ -24,6 +26,7 @@ export function Header({
   userName = "사용자",
   userRole = "담당자",
   notifications = [],
+  onMarkNotificationRead,
   showUser = true,
   showAdminMenu = false,
   showApproverMenu = false,
@@ -31,6 +34,17 @@ export function Header({
 }: HeaderProps) {
   const navigate = useNavigate();
   const notificationCount = notifications.filter((n) => n.unread).length;
+
+  const handleLogout = async () => {
+    try {
+      await logoutAPI();
+    } catch (error) {
+      console.error("Logout failed", error);
+    } finally {
+      sessionStorage.removeItem("user_session");
+      navigate("/", { replace: true });
+    }
+  };
 
   return (
     <header className="bg-white border-b border-border px-6 py-4 flex items-center justify-between">
@@ -87,9 +101,11 @@ export function Header({
           <NotificationDropdown
             notifications={notifications}
             count={notificationCount}
+            onMarkRead={onMarkNotificationRead}
           />
 
-          <div className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted rounded-md px-2 py-1 transition-colors"
+          <div
+            className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted rounded-md px-2 py-1 transition-colors"
             onClick={() => navigate("/mypage")}
           >
             <span className="text-foreground">
@@ -103,7 +119,7 @@ export function Header({
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => navigate("/")}
+            onClick={handleLogout}
             className="text-muted-foreground hover:text-foreground"
           >
             <LogOut className="size-5" />

@@ -6,6 +6,7 @@ import RagSearch from "./pages/RagSearch";
 import DocumentSummary from "./pages/DocumentSummary";
 import DraftCreation from "./pages/DraftCreation";
 import DraftView from "./pages/DraftView";
+import DraftList from "./pages/DraftList";
 import DocumentDetail from "./pages/DocumentDetail";
 import AdminDashboard from "./pages/AdminDashboard";
 import UserCreate from "./pages/UserCreate";
@@ -36,6 +37,10 @@ export const router = createBrowserRouter([
   {
     path: "/document-summary",
     Component: DocumentSummary,
+  },
+  {
+    path: "/draft/list",
+    Component: DraftList,
   },
   {
     path: "/draft/new",
@@ -80,5 +85,9 @@ export const router = createBrowserRouter([
   {
     path: "/admin/queries",
     Component: AdminDashboard,
+  },
+  {
+    path: "/user/activity",
+    Component: UserActivity,
   },
 ]);

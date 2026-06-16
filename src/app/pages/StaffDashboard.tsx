@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router";
 import toast, { Toaster } from "react-hot-toast";
 import { Header } from "../components/Header";
@@ -11,8 +11,12 @@ import {
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import ConfirmModal from "../components/ui/confirm-modal";
-import { StatusBadge } from "../components/StatusBadge";
 import { FileSearch, FileText, Plus } from "lucide-react";
+import { getDocumentList, deletedDocument } from "../api/document";
+import type { DocItem } from "../types/document";
+import { getDraftList, formatDate, mapStatusLabel } from "../api/draft";
+import type { DraftListItem } from "../types/draft";
+import { useNotifications } from "../hooks/useNotifications";
 
 interface StaffDashboardProps {
   userRole?: string;
@@ -24,66 +28,82 @@ export default function StaffDashboard({ userRole, showApproverMenu, showAdminMe
   const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState("all");
   const [sortOrder, setSortOrder] = useState("latest");
+  const [drafts, setDrafts] = useState<DraftListItem[]>([]);
 
-  const drafts = [
-    {
-      id: 1,
-      title: "데이터 결합 가이드 검토",
-      date: "2026.06.01",
-      status: "approved" as const,
-    },
-    {
-      id: 2,
-      title: "가명정보 처리 승인 요청",
-      date: "2026.06.01",
-      status: "pending" as const,
-    },
-    {
-      id: 3,
-      title: "감사원 처분요구서 대응",
-      date: "2026.05.30",
-      status: "rejected" as const,
-    },
-  ];
+  // 알림 훅 (SSE 실시간 + API 초기 로드)
+  const { notifications, markRead, latest } = useNotifications();
 
-  const notifications = [
-    {
-      id: 1,
-      message: "'데이터 결합 가이드 검토' 기안이 승인되었습니다",
-      time: "방금",
-      unread: true,
-      link: "/draft/1",
-    },
-    {
-      id: 2,
-      message: "'감사원 처분요구서 대응' 반려 — 사유 확인 필요",
-      time: "1시간 전",
-      unread: true,
-      link: "/draft/3",
-    },
-    {
-      id: 3,
-      message: "'개인정보 처리 지침 개정' 기안이 상신되었습니다",
-      time: "3시간 전",
-      unread: false,
-      link: "/draft/4",
-    },
-  ];
+  const [documents, setDocuments] =  useState<DocItem[]>([]);
+  const [category, setCategory] = useState("전체"); // 이미지의 '가이드라인' 등
+  const [keyword, setKeyword] = useState("");       // 검색어
+  const [page, setPage] = useState(1);              // 현재 페이지 번호
+  const [totalCount, setTotalCount] = useState(0);  // 총 아이템 수
+  const LIMIT = 5;                                 // 한 페이지에 보여줄 개수
+  const [sortBy, setSortBy] = useState("created_at");
 
-  const [documents, setDocuments] = useState([
-    { id: 1, title: "신규_공모사업_지침", category: "공모사업", date: "2026.06.01", status: "완료" },
-    { id: 2, title: "감사원_처분요구서_2026", category: "감사", date: "2026.05.30", status: "완료" },
-    { id: 3, title: "가명정보_처리_가이드라인", category: "가이드라인", date: "2026.05.28", status: "완료" },
-    { id: 4, title: "개인정보보호_내부지침_개정안", category: "기타", date: "2026.05.25", status: "완료" },
-  ]);
+  useEffect(() => {
+    const fetchList = async () => {
+      const data = await getDocumentList({
+        page,
+        limit: LIMIT,
+        category,
+        keyword,
+        sort_by: sortBy
+      });
 
-  const filteredDrafts = drafts
-    .filter((d) => statusFilter === "all" || d.status === statusFilter)
-    .sort((a, b) => {
-      if (sortOrder === "latest") return b.date.localeCompare(a.date);
-      if (sortOrder === "oldest") return a.date.localeCompare(b.date);
-      return a.title.localeCompare(b.title);
-    });
+      if (data) {
+        setDocuments(data.items);
+        setTotalCount(data.total_count);
+      }
+    };
+
+    fetchList();    
+  }, [page, category, keyword, sortBy]);
+
+  // 카테고리나 검색어가 바뀌면 페이지를 '1'로 리셋
+  const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setCategory(e.target.value);
+    setPage(1);
+  };
+
+  // 하단 페이징 블록 계산 
+  const totalPages = Math.ceil(totalCount / LIMIT);
+
+  const SORT_MAP: Record<string, string> = {
+    latest: "created_at",
+    oldest: "asc",
+    title: "title",
+  };
+
+  const fetchDrafts = useCallback(async () => {
+    try {
+      const data = await getDraftList({
+        status: statusFilter === "all" ? undefined : statusFilter,
+        sort_by: SORT_MAP[sortOrder] ?? "created_at",
+        limit: 3,
+      });
+      setDrafts(data.items);
+    } catch {
+      toast.error("기안 목록을 불러오지 못했습니다.");
+    }
+  }, [statusFilter, sortOrder]);
+
+  useEffect(() => {
+    fetchDrafts();
+  }, [fetchDrafts]);
+
+  // 15초 폴링 — 승인/반려 결과를 새로고침 없이 자동 반영
+  useEffect(() => {
+    const id = setInterval(fetchDrafts, 15000);
+    return () => clearInterval(id);
+  }, [fetchDrafts]);
+
+  // APPROVAL 알림 수신 시 즉시 갱신 (SSE가 살아있을 때 보너스)
+  useEffect(() => {
+    if (latest?.link?.startsWith("APPROVAL:")) {
+      fetchDrafts();
+    }
+  }, [latest]);
 
   // 💡 1. 모달의 열림 상태와 현재 선택된 문서 ID를 관리할 State 추가
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -96,20 +116,28 @@ export default function StaffDashboard({ userRole, showApproverMenu, showAdminMe
   };
 
   // 💡 3. 모달에서 '확인'을 눌렀을 때 실제 삭제를 처리할 함수
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     if (selectedDocId !== null) {
       // 실제 삭제 로직 (State 반영 또는 API 호출)
-      setDocuments(documents.filter(doc => doc.id !== selectedDocId));
+      const isSuccess = await deletedDocument(selectedDocId);
+      
+      if(isSuccess){
+        setDocuments(documents.filter(doc => doc.id !== selectedDocId));
 
-      setIsDeleteModalOpen(false);
-      setSelectedDocId(null);
-
-      toast.success("문서를 성공적으로 삭제했습니다.", {
-        position: "top-center", // 위치 조절 가능 (top-right, bottom-center 등)
-        duration: 3000,         // 3초 동안 노출
-      }); // 이 alert도 이쁜 토스트나 모달로 대체 가능합니다.
+        setIsDeleteModalOpen(false);
+        setSelectedDocId(null);
+  
+        toast.success("문서를 성공적으로 삭제했습니다.", {
+          position: "top-center", 
+          duration: 3000,         
+        }); 
+      }else {
+        toast.error("삭제를 실패했습니다. 권한이 없거나 이미 없는 데이터일 수 있습니다.", {
+        position: "top-center",
+        duration: 3000,
+      });
+      }
     }
-
   };
 
   // Retrieve the raw string data
@@ -132,6 +160,7 @@ export default function StaffDashboard({ userRole, showApproverMenu, showAdminMe
         userName={userInfo.name}
         userRole={userInfo.roles}
         notifications={notifications}
+        onMarkNotificationRead={markRead}
         showApproverMenu={showApproverMenu}
         showAdminMenu={showAdminMenu}
       />
@@ -198,6 +227,7 @@ export default function StaffDashboard({ userRole, showApproverMenu, showAdminMe
                     className="px-3 py-1.5 text-sm border border-border rounded-md bg-input-background focus:outline-none focus:ring-2 focus:ring-ring"
                   >
                     <option value="all">전체</option>
+                    <option value="draft">임시저장</option>
                     <option value="pending">대기</option>
                     <option value="approved">승인</option>
                     <option value="rejected">반려</option>
@@ -215,25 +245,47 @@ export default function StaffDashboard({ userRole, showApproverMenu, showAdminMe
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {filteredDrafts.map((draft) => (
-                    <div
-                      key={draft.id}
-                      className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
-                      onClick={() =>
-                        navigate(`/draft/view/${draft.id}`)
-                      }
-                    >
-                      <div className="flex-1">
-                        <h4 className="font-medium text-foreground">
-                          {draft.title}
-                        </h4>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {draft.date}
-                        </p>
+                  {drafts.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-6">
+                      기안이 없습니다.
+                    </p>
+                  ) : (
+                    drafts.map((draft) => (
+                      <div
+                        key={draft.draft_id}
+                        className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
+                        onClick={() => navigate(`/draft/view/${draft.draft_id}`)}
+                      >
+                        <div className="flex-1">
+                          <h4 className="font-medium text-foreground">{draft.title}</h4>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {formatDate(draft.created_at)}
+                          </p>
+                        </div>
+                        <Badge
+                          className={{
+                            draft:    "bg-muted text-muted-foreground border-transparent",
+                            pending:  "bg-[var(--status-pending)] text-white border-transparent",
+                            approved: "bg-[var(--status-approved)] text-white border-transparent",
+                            rejected: "bg-[var(--status-rejected)] text-white border-transparent",
+                            canceled: "bg-muted text-muted-foreground border-transparent",
+                          }[draft.status] ?? ""}
+                        >
+                          {mapStatusLabel(draft.status)}
+                        </Badge>
                       </div>
-                      <StatusBadge status={draft.status} />
-                    </div>
-                  ))}
+                    ))
+                  )}
+                </div>
+                <div className="mt-4 pt-3 border-t border-border">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full text-muted-foreground hover:text-foreground"
+                    onClick={() => navigate("/draft/list")}
+                  >
+                    전체 기안 보기 →
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -244,32 +296,43 @@ export default function StaffDashboard({ userRole, showApproverMenu, showAdminMe
               <CardHeader className="pb-4">
                 <div className="flex items-center justify-between">
                   <CardTitle>알림</CardTitle>
-                  <span className="text-xs px-2 py-1 bg-status-info text-white rounded-full">
-                    2 새 알림
-                  </span>
+                  {notifications.filter((n) => n.unread).length > 0 && (
+                    <span className="text-xs px-2 py-1 bg-status-info text-white rounded-full">
+                      {notifications.filter((n) => n.unread).length} 새 알림
+                    </span>
+                  )}
                 </div>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {notifications.map((notif) => (
-                    <div
-                      key={notif.id}
-                      className="flex gap-3 p-3 border border-border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
-                      onClick={() => notif.link && navigate(notif.link)}
-                    >
-                      {notif.unread && (
-                        <div className="size-2 bg-status-info rounded-full mt-2 shrink-0" />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-foreground leading-relaxed">
-                          {notif.message}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {notif.time}
-                        </p>
+                  {notifications.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      새로운 알림이 없습니다
+                    </p>
+                  ) : (
+                    notifications.slice(0, 3).map((notif) => (
+                      <div
+                        key={notif.id}
+                        className="flex gap-3 p-3 border border-border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
+                        onClick={() => {
+                          if (notif.unread) markRead(notif.id);
+                          if (notif.link) navigate(notif.link);
+                        }}
+                      >
+                        {notif.unread && (
+                          <div className="size-2 bg-status-info rounded-full mt-2 shrink-0" />
+                        )}
+                        <div className={`flex-1 min-w-0 ${!notif.unread ? "pl-5" : ""}`}>
+                          <p className="text-sm text-foreground leading-relaxed">
+                            {notif.message}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {notif.time}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -282,7 +345,10 @@ export default function StaffDashboard({ userRole, showApproverMenu, showAdminMe
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <CardTitle>내 문서함</CardTitle>
-                  <select className="px-3 py-1.5 text-sm border border-border rounded-md bg-input-background focus:outline-none focus:ring-2 focus:ring-ring">
+                  <select 
+                    value={category}
+                    onChange={handleCategoryChange}
+                    className="px-3 py-1.5 text-sm border border-border rounded-md bg-input-background focus:outline-none focus:ring-2 focus:ring-ring" >
                     <option>전체</option>
                     <option>감사</option>
                     <option>공모사업</option>
@@ -295,6 +361,11 @@ export default function StaffDashboard({ userRole, showApproverMenu, showAdminMe
                     <input
                       type="text"
                       placeholder="검색..."
+                      value={keyword}
+                      onChange={(e) => {
+                        setKeyword(e.target.value);
+                        setPage(1); // 검색어 타이핑 시에도 1페이지로 리셋
+                      }}
                       className="pl-8 pr-3 py-1.5 text-sm border border-border rounded-md bg-input-background focus:outline-none focus:ring-2 focus:ring-ring w-48"
                     />
                     <svg
@@ -311,10 +382,16 @@ export default function StaffDashboard({ userRole, showApproverMenu, showAdminMe
                       />
                     </svg>
                   </div>
-                  <select className="px-3 py-1.5 text-sm border border-border rounded-md bg-input-background focus:outline-none focus:ring-2 focus:ring-ring">
-                    <option>최신순</option>
-                    <option>제목순</option>
-                    <option>카테고리순</option>
+                  <select 
+                    value={sortBy}
+                    onChange={(e) => {
+                      setSortBy(e.target.value);
+                      setPage(1);
+                    }}
+                    className="px-3 py-1.5 text-sm border border-border rounded-md bg-input-background focus:outline-none focus:ring-2 focus:ring-ring">
+                    <option value="created_at">최신순</option>
+                    <option value="title">제목순</option>
+                    <option value="oldest">오래된순</option>
                   </select>
                 </div>
               </div>
@@ -342,11 +419,22 @@ export default function StaffDashboard({ userRole, showApproverMenu, showAdminMe
                     </tr>
                   </thead>
                   <tbody>
-                    {documents.map((doc) => (
+                  {documents.length === 0 ? (
+                    <tr className="border-b border-border bg-background">
+                      <td 
+                        colSpan={5} 
+                        className="px-4 py-10 text-center text-sm text-muted-foreground font-medium"
+                      >
+                        🔍 조건에 부합하는 문서가 존재하지 않습니다.
+                      </td>
+                    </tr>
+                  ) : (
+                    documents.map((doc) => (
                       <tr
                         key={doc.id}
                         className="border-b border-border hover:bg-muted/30 cursor-pointer transition-colors"
                         onClick={() =>
+
                           navigate(`/document/${doc.id}`)
                         }
                       >
@@ -416,29 +504,39 @@ export default function StaffDashboard({ userRole, showApproverMenu, showAdminMe
                           </div>
                         </td>
                       </tr>
-                    ))}
+                      
+                    )))}
                   </tbody>
                 </table>
               </div>
               <div className="flex items-center justify-center gap-2 mt-4">
-                <Button variant="outline" size="sm" disabled>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  disabled={page === 1}
+                  onClick={() => setPage((prev) => prev - 1)}
+                >
                   이전
                 </Button>
                 <div className="flex items-center gap-1">
-                  {[1, 2, 3].map((page) => (
-                    <Button
-                      key={page}
-                      variant={
-                        page === 1 ? "default" : "outline"
-                      }
-                      size="sm"
-                      className="w-8"
-                    >
-                      {page}
-                    </Button>
-                  ))}
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                      <Button
+                        key={p}
+                        variant={page === p ? "default" : "outline"}
+                        size="sm"
+                        className="w-8"
+                        onClick={() => setPage(p)}
+                      >
+                        {p}
+                      </Button>
+                    ))}
                 </div>
-                <Button variant="outline" size="sm">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  disabled={page === totalPages}
+                  onClick={() => setPage((prev) => prev + 1)}
+                >
                   다음
                 </Button>
               </div>

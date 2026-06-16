@@ -1,22 +1,13 @@
-import { useState } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useState, useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { Header } from "../components/Header";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";
+import ConfirmModal from "../components/ui/confirm-modal";
 import { Badge } from "../components/ui/badge";
 import toast, { Toaster } from "react-hot-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "../components/ui/alert-dialog";
 import {
   Select,
   SelectContent,
@@ -30,57 +21,165 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "../components/ui/dropdown-menu";
-import { ArrowLeft, Edit, Trash2, Download } from "lucide-react";
-
+import { ArrowLeft, Edit, Trash2, Download, FilePen } from "lucide-react";
+import { getDocumentDetail, deletedDocument, updateDocument } from "../api/document";
+import type { DocDetailItem } from "@/types/document";
+  
 export default function DocumentDetail() {
   const navigate = useNavigate();
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
+
+  // 1. 모달 및 화면 제어 관련 State
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [title, setTitle] = useState("신규_공모사업_지침");
-  const [category, setCategory] = useState("공모사업");
-  const [summary, setSummary] = useState(
-    `○ 공모 대상: 가명정보 활용 데이터 분석 과제
-○ 신청 기간: 2026.06.15 ~ 07.15
-○ 지원 규모: 과제당 최대 5천만원
-○ 제출 서류: 사업계획서, 개인정보 처리방침
-○ 평가 기준: 데이터 활용 적정성, 개인정보 보호 계획, 사업 수행 역량
-○ 문의처: 개인정보보호위원회 데이터정책과 (02-2100-3000)`
-  );
+  const [document, setDocument] = useState<DocDetailItem | null>(null);
 
-  const originalText = `제1조 (목적)
-이 지침은 「개인정보 보호법」 제28조의2 및 같은 법 시행령 제29조의2에 따른 가명정보의 처리에 관한 세부 사항을 정함으로써 가명정보를 활용한 신규 서비스 창출과 기존 서비스 개선을 도모하고 개인정보를 보호하는 데 그 목적이 있다.
+  // 2. 문서 데이터 입력 폼 State
+  const [title, setTitle] = useState("");
+  const [category, setCategory] = useState("");
+  const [summary, setSummary] = useState("");
+  const [content, setContent] = useState("");
 
-제2조 (공모사업 개요)
-가명정보를 활용한 데이터 분석 과제를 발굴하여 지원하는 것을 목적으로 한다. 신청 기간은 2026년 6월 15일부터 7월 15일까지이며, 선정된 과제에 대하여 과제당 최대 5천만원을 지원한다.
+  // 3. 페이지 진입 시 데이터 단건 조회
+  useEffect(() => {
+    if (!id) return;
+    setLoading(true);
+    getDocumentDetail(Number(id))
+      .then((data: DocDetailItem) => {
+        setDocument(data);
+        
+        // Form 필드 초기값 세팅
+        setTitle(data.title);
+        setCategory(data.category);
+        setSummary(data.summary);
+        setContent(data.content);
+      })
+      .catch((err) => {
+        console.error(err);
+        toast.error("문서 상세 정보를 불러오지 못했습니다.");
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, [id]);
 
-제3조 (신청 자격 및 제출 서류)
-공공기관, 민간기업, 연구기관 등 가명정보 처리가 필요한 법인 및 단체가 신청할 수 있다. 제출 서류는 사업계획서, 개인정보 처리방침, 가명처리 계획서를 포함한다.
-
-제4조 (평가 기준)
-데이터 활용의 적정성, 개인정보 보호 계획의 충실성, 사업 수행 역량 등을 종합적으로 평가한다.
-
-제5조 (문의처)
-사업 관련 문의는 개인정보보호위원회 데이터정책과(전화: 02-2100-3000)로 연락하시기 바랍니다.`;
-
-  const handleSave = () => {
-    setIsEditing(false);
-    toast.success("문서가 수정되었습니다.");
+  const handleOpenDeleteModal = () => {
+    setIsDeleteModalOpen(true);
   };
 
-  const handleDelete = () => {
-    toast.error("문서가 삭제되었습니다.");
-    navigate("/staff/dashboard");
+  const handleDeleteConfirm = async () => {
+    if (!id) return;
+
+    try {
+      const isSuccess = await deletedDocument(Number(id));
+      
+      if (isSuccess) {
+        setIsDeleteModalOpen(false);
+        toast.success("문서를 성공적으로 삭제했습니다.", {
+          position: "top-center", 
+          duration: 3000,         
+        }); 
+        navigate("/staff/dashboard");
+      } else {
+        toast.error("삭제에 실패했습니다. 권한이 없거나 이미 없는 데이터일 수 있습니다.", {
+          position: "top-center",
+          duration: 3000,
+        });
+      }
+    } catch (error) {
+      console.error("삭제 중 오류 발생:", error);
+      toast.error("서버와 통신 중 오류가 발생했습니다.");
+    }
+  };
+
+  const handleCancel = () => {
+    if (document) {
+      setTitle(document.title);
+      setCategory(document.category);
+      setSummary(document.summary);
+    }
+    setIsEditing(false);
+  };
+
+  const handleSave = async () => {
+    if (!id) return;
+
+    try {
+      const isSuccess = await updateDocument(Number(id), {
+        title,
+        category,
+        summary,
+      });
+
+      if (isSuccess) {
+        setIsEditing(false);
+        
+        if (document) {
+          setDocument({ ...document, title, category, summary, content });
+        }
+        toast.success("문서가 수정되었습니다.");
+      } else {
+        toast.error("문서 수정에 실패했습니다. 데이터를 확인해 주세요.");
+      }
+    } catch (error) {
+      toast.error("서버와 통신 중 오류가 발생했습니다.");
+    }
+  };
+
+  const handleDownloadTxt = () => {
+    const blob = new Blob([summary], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = window.document.createElement("a");
+    a.href = url;
+    a.download = `${title}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadPdf = () => {
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      toast.error("팝업이 차단되었습니다. 팝업 허용 후 다시 시도해 주세요.");
+      return;
+    }
+    const escaped = summary.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    printWindow.document.write(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>${title}</title>
+  <style>
+    body { font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif; padding: 48px; line-height: 1.8; font-size: 14px; color: #333; }
+    h1 { font-size: 20px; margin-bottom: 24px; padding-bottom: 12px; border-bottom: 1px solid #ddd; }
+    pre { white-space: pre-wrap; word-break: break-word; }
+  </style>
+</head>
+<body>
+  <h1>${title}</h1>
+  <pre>${escaped}</pre>
+</body>
+</html>`);
+    printWindow.document.close();
+    printWindow.print();
   };
 
   const categories = ["감사", "공모사업", "가이드라인", "기타"];
+
+  // 8. 예외 처리 분기 (로딩 및 미존재 대응)
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center text-muted-foreground">로딩 중...</div>;
+  }
+  if (!document) {
+    return <div className="min-h-screen flex items-center justify-center text-muted-foreground">문서를 찾을 수 없습니다.</div>;
+  }
 
   return (
     <div className="min-h-screen bg-background">
       <Toaster />
       <Header userName="김주무관" userRole="실무 담당자" notificationCount={2} />
-    
 
+      {/* 상단 컨트롤 바 */}
       <div className="border-b border-border px-6 py-4 bg-white">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -121,20 +220,28 @@ export default function DocumentDetail() {
           <div className="flex items-center gap-2">
             {isEditing ? (
               <>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setIsEditing(false);
-                    setTitle("신규_공모사업_지침");
-                    setCategory("공모사업");
-                  }}
-                >
+                <Button variant="outline" onClick={handleCancel}>
                   취소
                 </Button>
                 <Button onClick={handleSave}>저장</Button>
               </>
             ) : (
               <>
+                <Button
+                  variant="outline"
+                  onClick={() =>
+                    navigate("/draft/new", {
+                      state: {
+                        sourceDocId: Number(id),
+                        sourceDocName: title,
+                        sourceSummary: summary,
+                      },
+                    })
+                  }
+                >
+                  <FilePen className="size-4" />
+                  기안 작성
+                </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline">
@@ -143,25 +250,25 @@ export default function DocumentDetail() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent>
-                    <DropdownMenuItem onClick={() => alert("TXT 파일 다운로드 중...")}>
+                    <DropdownMenuItem onClick={() => handleDownloadTxt()}>
                       TXT 다운로드
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => alert("PDF 파일 다운로드 중...")}>
+                    <DropdownMenuItem onClick={handleDownloadPdf}>
                       PDF 다운로드
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-                <Button
-                  variant="outline"
-                  onClick={() => setIsEditing(true)}
-                >
+                <Button variant="outline" onClick={() => setIsEditing(true)}>
                   <Edit className="size-4" />
                   수정
                 </Button>
                 <Button
                   variant="outline"
                   className="border-destructive text-destructive hover:bg-destructive hover:text-white"
-                  onClick={() => setShowDeleteDialog(true)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenDeleteModal();
+                  }}
                 >
                   <Trash2 className="size-4" />
                   삭제
@@ -172,8 +279,10 @@ export default function DocumentDetail() {
         </div>
       </div>
 
+      {/* 메인 뷰어 영역 */}
       <main className="container mx-auto px-6 py-8 max-w-7xl h-[calc(100vh-200px)]">
         <div className="grid grid-cols-2 gap-6 h-full">
+          {/* 왼쪽 카드: 원문 */}
           <Card className="flex flex-col">
             <CardHeader className="shrink-0">
               <CardTitle className="text-base">원문</CardTitle>
@@ -182,13 +291,14 @@ export default function DocumentDetail() {
               <div className="bg-muted/30 rounded-lg p-4 h-full overflow-y-auto">
                 <div className="prose prose-sm max-w-none">
                   <div className="space-y-4 text-sm leading-relaxed text-foreground whitespace-pre-wrap">
-                    {originalText}
+                    {content}
                   </div>
                 </div>
               </div>
             </CardContent>
           </Card>
 
+          {/* 오른쪽 카드: 요약본 */}
           <Card className="flex flex-col">
             <CardHeader className="shrink-0">
               <CardTitle className="text-base">요약본</CardTitle>
@@ -212,25 +322,17 @@ export default function DocumentDetail() {
         </div>
       </main>
 
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>문서 삭제</AlertDialogTitle>
-            <AlertDialogDescription>
-              이 문서를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>취소</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              className="bg-destructive text-white hover:bg-destructive/90"
-            >
-              삭제
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* 공통 컨펌 모달 연동 */}
+      <ConfirmModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={handleDeleteConfirm}
+        title="문서 삭제"
+        description="정말 삭제하시겠습니까?"
+        confirmText="삭제"
+        cancelText="취소"
+        variant="destructive"
+      />
     </div>
   );
 }
