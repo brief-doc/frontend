@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
-import { AdminLayout } from "../components/AdminLayout";
+import { MainLayout } from "../components/MainLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -15,14 +15,25 @@ export default function UserCreate() {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
-    //department: "",
-    //position: "",
     roles: [] as string[],
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [isAuthorized, setIsAuthorized] = useState(false); // 관리자 여부 확인 상태 추가
 
-  //const departments = ["기획조정실", "정보화담당관", "개인정보보호과", "데이터정책과", "감사담당관"];
-  //const positions = ["주무관", "사무관", "서기관", "과장", "팀장", "국장"];
+  // 🔒 [보안 가드] 관리자가 아니면 이 페이지 진입 자체를 차단하고 튕겨냅니다.
+  useEffect(() => {
+    const rawData = sessionStorage.getItem("user_session");
+    const sessionData = rawData ? JSON.parse(rawData) : null;
+    const roles: string[] = sessionData?.roles ?? [];
+
+    if (!roles.includes("관리자")) {
+      toast.error("접근 권한이 없습니다. 관리자만 이용 가능합니다.");
+      // 권한이 없으면 실무 대시보드나 기본 페이지로 리다이렉트
+      navigate("/staff/dashboard");
+    } else {
+      setIsAuthorized(true); // 관리자가 맞다면 페이지 콘텐츠를 보여줍니다.
+    }
+  }, [navigate]);
 
   const availableRoles = [
     { id: "staff", label: "실무 담당자" },
@@ -41,13 +52,7 @@ export default function UserCreate() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (
-      !formData.name ||
-      !formData.email ||
-      //!formData.department ||
-      //!formData.position ||
-      formData.roles.length === 0
-    ) {
+    if (!formData.name || !formData.email || formData.roles.length === 0) {
       toast.error("모든 필드를 입력해주세요.");
       return;
     }
@@ -64,8 +69,18 @@ export default function UserCreate() {
     }
   };
 
+  // 허가받지 않은 유저는 아래 마크업을 렌더링하기 전에 리다이렉트 처리되도록 방어합니다.
+  if (!isAuthorized) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background text-muted-foreground">
+        <Toaster />
+        권한을 확인 중입니다...
+      </div>
+    );
+  }
+
   return (
-    <AdminLayout>
+    <MainLayout>
       <Toaster />
       <div className="max-w-2xl">
         <div className="mb-6">
@@ -112,46 +127,6 @@ export default function UserCreate() {
                   className="bg-input-background"
                 />
               </div>
-              {/* 부서와 직급 우선 주석 처리}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="department">부서</Label>
-                  <select
-                    id="department"
-                    value={formData.department}
-                    onChange={(e) =>
-                      setFormData({ ...formData, department: e.target.value })
-                    }
-                    className="w-full px-3 py-2 text-sm border border-border rounded-md bg-input-background focus:outline-none focus:ring-2 focus:ring-ring"
-                  >
-                    <option value="">선택하세요</option>
-                    {departments.map((dept) => (
-                      <option key={dept} value={dept}>
-                        {dept}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="position">직급</Label>
-                  <select
-                    id="position"
-                    value={formData.position}
-                    onChange={(e) =>
-                      setFormData({ ...formData, position: e.target.value })
-                    }
-                    className="w-full px-3 py-2 text-sm border border-border rounded-md bg-input-background focus:outline-none focus:ring-2 focus:ring-ring"
-                  >
-                    <option value="">선택하세요</option>
-                    {positions.map((pos) => (
-                      <option key={pos} value={pos}>
-                        {pos}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>*/}
 
               <div className="space-y-3">
                 <Label>권한 설정</Label>
@@ -201,6 +176,6 @@ export default function UserCreate() {
           </CardContent>
         </Card>
       </div>
-    </AdminLayout>
+    </MainLayout>
   );
 }

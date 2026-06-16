@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams, useLocation } from "react-router";
-import { Header } from "../components/Header";
+import { MainLayout } from "../components/MainLayout";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";
@@ -143,151 +143,149 @@ export default function DraftCreation() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <Toaster />
-      <Header
-        userName={sessionData?.name ?? "사용자"}
-        userRole={sessionData?.roles?.[0] ?? "실무 담당자"}
-      />
+    <MainLayout>
+      <div className="min-h-screen bg-background">
+        <Toaster />
 
-      <div className="border-b border-border px-6 py-4 bg-white">
-        <div className="flex items-center gap-3">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate("/staff/dashboard")}
-          >
-            <ArrowLeft className="size-5" />
-          </Button>
-          <h2 className="text-lg font-medium">{id ? "기안 수정" : "기안 작성"}</h2>
+        <div className="border-b border-border px-6 py-4 bg-white">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate("/staff/dashboard")}
+            >
+              <ArrowLeft className="size-5" />
+            </Button>
+            <h2 className="text-lg font-medium">{id ? "기안 수정" : "기안 작성"}</h2>
+          </div>
         </div>
-      </div>
 
-      <main className="container mx-auto px-6 py-8 max-w-4xl space-y-6">
-        {/* 첨부 근거 카드 */}
-        {sourceDocId && sourceDocName && (
-          <Card className="bg-muted/30">
-            <CardContent className="pt-4 pb-4">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2 text-sm">
-                  <span className="text-muted-foreground">📎 근거:</span>
-                  <div className="flex items-center gap-1.5 text-foreground">
-                    <FileText className="size-4" />
-                    <span className="font-medium">{sourceDocName}</span>
+        <main className="container mx-auto px-6 py-8 max-w-4xl space-y-6">
+          {/* 첨부 근거 카드 */}
+          {sourceDocId && sourceDocName && (
+            <Card className="bg-muted/30">
+              <CardContent className="pt-4 pb-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="text-muted-foreground">📎 근거:</span>
+                    <div className="flex items-center gap-1.5 text-foreground">
+                      <FileText className="size-4" />
+                      <span className="font-medium">{sourceDocName}</span>
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-1">
-                  {sourceSummary && (
+                  <div className="flex items-center gap-1">
+                    {sourceSummary && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-7"
+                        onClick={() => setSummaryExpanded((v) => !v)}
+                      >
+                        {summaryExpanded
+                          ? <ChevronUp className="size-4" />
+                          : <ChevronDown className="size-4" />}
+                      </Button>
+                    )}
                     <Button
                       variant="ghost"
                       size="icon"
                       className="size-7"
-                      onClick={() => setSummaryExpanded((v) => !v)}
+                      onClick={handleDetachSource}
                     >
-                      {summaryExpanded
-                        ? <ChevronUp className="size-4" />
-                        : <ChevronDown className="size-4" />}
+                      <X className="size-4" />
                     </Button>
-                  )}
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="size-7"
-                    onClick={handleDetachSource}
-                  >
-                    <X className="size-4" />
-                  </Button>
+                  </div>
                 </div>
+
+                {/* 요약문 내용 */}
+                {sourceSummary && summaryExpanded && (
+                  <div className="mt-2 border-t border-border pt-3 space-y-1">
+                    <p className="text-xs font-medium text-muted-foreground mb-1">요약 내용</p>
+                    <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto">
+                      {sourceSummary}
+                    </p>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-xs h-7 px-2 mt-1"
+                      onClick={() => setContent((prev) => prev ? `${prev}\n\n${sourceSummary}` : sourceSummary!)}
+                    >
+                      본문에 삽입
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          <Card>
+            <CardContent className="pt-6 space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="title">기안 제목</Label>
+                <Input
+                  id="title"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="기안 제목을 입력하세요"
+                  className="bg-input-background"
+                />
               </div>
 
-              {/* 요약문 내용 */}
-              {sourceSummary && summaryExpanded && (
-                <div className="mt-2 border-t border-border pt-3 space-y-1">
-                  <p className="text-xs font-medium text-muted-foreground mb-1">요약 내용</p>
-                  <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto">
-                    {sourceSummary}
-                  </p>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-xs h-7 px-2 mt-1"
-                    onClick={() => setContent((prev) => prev ? `${prev}\n\n${sourceSummary}` : sourceSummary!)}
-                  >
-                    본문에 삽입
-                  </Button>
-                </div>
-              )}
+              <div className="space-y-2">
+                <Label htmlFor="approver">결재권자</Label>
+                <select
+                  id="approver"
+                  value={approverId ?? ""}
+                  onChange={(e) =>
+                    setApproverId(e.target.value ? Number(e.target.value) : null)
+                  }
+                  className="w-full px-3 py-2 text-sm border border-border rounded-md bg-input-background focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                  <option value="">결재권자를 선택하세요</option>
+                  {approverList.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="content">본문</Label>
+                <Textarea
+                  id="content"
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                  placeholder="상신 내용을 작성하세요."
+                  className="bg-input-background min-h-[300px] resize-y"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  disabled={submitting}
+                  onClick={() => handleSubmit("save")}
+                >
+                  임시저장
+                </Button>
+                <Button
+                  className="flex-1"
+                  disabled={submitting}
+                  onClick={() => handleSubmit("submit")}
+                >
+                  상신
+                </Button>
+              </div>
+
+              <p className="text-xs text-muted-foreground text-center">
+                상신 시 결재자에게 알림이 전송됩니다
+              </p>
             </CardContent>
           </Card>
-        )}
-
-        <Card>
-          <CardContent className="pt-6 space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="title">기안 제목</Label>
-              <Input
-                id="title"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="기안 제목을 입력하세요"
-                className="bg-input-background"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="approver">결재권자</Label>
-              <select
-                id="approver"
-                value={approverId ?? ""}
-                onChange={(e) =>
-                  setApproverId(e.target.value ? Number(e.target.value) : null)
-                }
-                className="w-full px-3 py-2 text-sm border border-border rounded-md bg-input-background focus:outline-none focus:ring-2 focus:ring-ring"
-              >
-                <option value="">결재권자를 선택하세요</option>
-                {approverList.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="content">본문</Label>
-              <Textarea
-                id="content"
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                placeholder="상신 내용을 작성하세요."
-                className="bg-input-background min-h-[300px] resize-y"
-              />
-            </div>
-
-            <div className="flex gap-3 pt-4">
-              <Button
-                variant="outline"
-                className="flex-1"
-                disabled={submitting}
-                onClick={() => handleSubmit("save")}
-              >
-                임시저장
-              </Button>
-              <Button
-                className="flex-1"
-                disabled={submitting}
-                onClick={() => handleSubmit("submit")}
-              >
-                상신
-              </Button>
-            </div>
-
-            <p className="text-xs text-muted-foreground text-center">
-              상신 시 결재자에게 알림이 전송됩니다
-            </p>
-          </CardContent>
-        </Card>
-      </main>
-    </div>
+        </main>
+      </div>
+    </MainLayout>
   );
 }
