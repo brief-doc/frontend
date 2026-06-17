@@ -289,6 +289,7 @@ export default function AdminDashboard() {
                         key={user.id}
                         className={`border-b border-border hover:bg-muted/30 cursor-pointer transition-colors ${user.is_deleted ? "opacity-60 bg-muted/20" : ""
                           }`}
+                        onClick={() => navigate(`/admin/users/${user.id}/activity`)}
                       >
                         <td className="px-4 py-3 text-sm font-medium text-foreground">{user.name}</td>
                         <td className="px-4 py-3 text-sm text-muted-foreground">{user.email}</td>
