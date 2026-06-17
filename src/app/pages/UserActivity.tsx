@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
-import { AdminLayout } from "../components/AdminLayout";
+import { MainLayout } from "../components/MainLayout";
 import {
   Card,
   CardContent,
@@ -30,6 +30,8 @@ export default function UserActivity() {
   const sessionData = rawData ? JSON.parse(rawData) : null;
   const myRoles: string[] = sessionData?.roles ?? [];
 
+  const me = sessionData ? { name: sessionData.name, roles: myRoles } : null;
+
   // 로그인한 사람이 '관리자'이고 URL 패러미터에 특정 userId가 붙어있다면 관리자 상세 뷰로 판정
   const isAdminView = myRoles.includes("관리자") && userId;
 
@@ -42,8 +44,8 @@ export default function UserActivity() {
 
         // 관리자 모드면 특정 user_id 쿼리를 붙이고, 일반 모드면 본인 조회 호출
         const url = userId
-          ? `http://127.0.0.1:8000/auth/users/activity?user_id=${userId}`
-          : `http://127.0.0.1:8000/auth/users/activity`;
+          ? `http://127.0.0.1:8000/users/activity?user_id=${userId}`
+          : `http://127.0.0.1:8000/users/activity`;
 
         const response = await fetch(url, {
           method: "GET",
@@ -69,18 +71,28 @@ export default function UserActivity() {
     fetchActivityData();
   }, [userId]);
 
-  // 3. 템플릿용 Mock 데이터 유지 (ragQueries, drafts만 온전히 남김)
-  const ragQueries = activityData?.ragQueries ?? [
-    { id: 1, query: "가명정보 결합 시 안전성 확보 조치는 무엇인가요?", timestamp: "2026.06.02 14:32" },
-    { id: 2, query: "인공지능 모델 학습을 위한 공개 데이터셋 이용 가이드라인이 있나요?", timestamp: "2026.06.01 09:15" },
-    { id: 3, query: "비식별 처리된 금융 데이터의 제3자 제공 절차가 궁금합니다.", timestamp: "2026.05.28 17:40" },
-  ];
+  const formatDate = (iso: string) =>
+    iso ? new Date(iso).toLocaleString("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "";
 
-  const drafts = activityData?.drafts ?? [
-    { id: 1, title: "2026년도 상반기 가명정보 활용 활성화 계획안", type: "내부 보고서", date: "2026.06.02", status: "review", statusLabel: "검토중" },
-    { id: 2, title: "개인정보 영향평가 대상 여부 확인 검토서", type: "검토 의견서", date: "2025.05.29", status: "approved", statusLabel: "승인완료" },
-    { id: 3, title: "보안성 심의 신청 및 자가 점검 체크리스트", type: "신청서", date: "2025.05.26", status: "draft", statusLabel: "작성중" },
-  ];
+  const STATUS_LABEL: Record<string, string> = {
+    draft: "임시저장", pending: "대기", approved: "승인", rejected: "반려", canceled: "취소",
+  };
+
+  const ragQueries: { id: number; query: string; timestamp: string }[] =
+    (activityData?.rag_queries ?? []).map((q: any) => ({
+      id: q.query_id,
+      query: q.query_text,
+      timestamp: formatDate(q.created_at),
+    }));
+
+  const drafts: { id: number; title: string; date: string; status: string; statusLabel: string }[] =
+    (activityData?.drafts ?? []).map((d: any) => ({
+      id: d.draft_id,
+      title: d.title,
+      date: formatDate(d.created_at),
+      status: d.status,
+      statusLabel: STATUS_LABEL[d.status] ?? d.status,
+    }));
 
   const statusColors: Record<string, string> = {
     draft: "bg-amber-500/10 text-amber-500 border-amber-500/20",
@@ -203,22 +215,18 @@ export default function UserActivity() {
                   <thead>
                     <tr className="border-b border-border bg-muted/40 text-muted-foreground text-xs font-semibold">
                       <th className="px-4 py-3">문서 제목</th>
-                      <th className="px-4 py-3">유형</th>
                       <th className="px-4 py-3">생성 일시</th>
                       <th className="px-4 py-3">상태</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {drafts.map((draft: any) => (
+                    {drafts.map((draft) => (
                       <tr
                         key={draft.id}
                         className="border-b border-border hover:bg-muted/30 transition-colors"
                       >
                         <td className="px-4 py-3 text-sm text-foreground">
                           {draft.title}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-muted-foreground">
-                          {draft.type}
                         </td>
                         <td className="px-4 py-3 text-sm text-muted-foreground">
                           {draft.date}
@@ -242,7 +250,7 @@ export default function UserActivity() {
 
   // 조건부 레이아웃 렌더링 스위치
   if (isAdminView) {
-    return <AdminLayout>{MainContent}</AdminLayout>;
+    return <MainLayout currentUser={me}>{MainContent}</MainLayout>;
   } else {
     return <div className="p-8 bg-background min-h-screen">{MainContent}</div>;
   }

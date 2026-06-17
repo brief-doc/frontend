@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Header } from "../components/Header";
+import { MainLayout } from "../components/MainLayout";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";
@@ -23,8 +23,8 @@ import {
 } from "../components/ui/dropdown-menu";
 import { ArrowLeft, Edit, Trash2, Download, FilePen } from "lucide-react";
 import { getDocumentDetail, deletedDocument, updateDocument } from "../api/document";
-import type { DocDetailItem } from "@/types/document";
-  
+import type { DocDetailItem } from "../types/document";
+
 export default function DocumentDetail() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
@@ -48,7 +48,7 @@ export default function DocumentDetail() {
     getDocumentDetail(Number(id))
       .then((data: DocDetailItem) => {
         setDocument(data);
-        
+
         // Form 필드 초기값 세팅
         setTitle(data.title);
         setCategory(data.category);
@@ -73,13 +73,13 @@ export default function DocumentDetail() {
 
     try {
       const isSuccess = await deletedDocument(Number(id));
-      
+
       if (isSuccess) {
         setIsDeleteModalOpen(false);
         toast.success("문서를 성공적으로 삭제했습니다.", {
-          position: "top-center", 
-          duration: 3000,         
-        }); 
+          position: "top-center",
+          duration: 3000,
+        });
         navigate("/staff/dashboard");
       } else {
         toast.error("삭제에 실패했습니다. 권한이 없거나 이미 없는 데이터일 수 있습니다.", {
@@ -114,7 +114,7 @@ export default function DocumentDetail() {
 
       if (isSuccess) {
         setIsEditing(false);
-        
+
         if (document) {
           setDocument({ ...document, title, category, summary, content });
         }
@@ -175,10 +175,8 @@ export default function DocumentDetail() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <MainLayout>
       <Toaster />
-      <Header userName="김주무관" userRole="실무 담당자" notificationCount={2} />
-
       {/* 상단 컨트롤 바 */}
       <div className="border-b border-border px-6 py-4 bg-white">
         <div className="flex items-center justify-between">
@@ -333,6 +331,6 @@ export default function DocumentDetail() {
         cancelText="취소"
         variant="destructive"
       />
-    </div>
+    </MainLayout >
   );
 }

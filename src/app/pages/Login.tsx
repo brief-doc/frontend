@@ -53,7 +53,6 @@ export default function Login() {
         sessionStorage.setItem(
           "user_session",
           JSON.stringify({
-            user_name: data.user_name ?? data.name,
             name: data.name,
             email: data.email,
             id: data.id,
@@ -69,7 +68,6 @@ export default function Login() {
           sessionStorage.setItem(
             "user_session",
             JSON.stringify({
-              user_name: meData.user_name ?? meData.name,
               name: meData.name,
               email: meData.email,
               id: meData.id,

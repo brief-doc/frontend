@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router";
-import { Header } from "../components/Header";
+import { MainLayout } from "../components/MainLayout";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Progress } from "../components/ui/progress";
@@ -42,13 +42,12 @@ function StageSteps({ stage }: { stage: string | null }) {
         return (
           <div
             key={step.key}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs border ${
-              done
-                ? "bg-[var(--status-approved)]/10 text-[var(--status-approved)] border-[var(--status-approved)]/20"
-                : active
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs border ${done
+              ? "bg-[var(--status-approved)]/10 text-[var(--status-approved)] border-[var(--status-approved)]/20"
+              : active
                 ? "bg-[var(--status-info)]/10 text-[var(--status-info)] border-[var(--status-info)]/20"
                 : "bg-muted text-muted-foreground border-border"
-            }`}
+              }`}
           >
             {done ? "✓" : active ? "⟳" : "○"}
             <span>{step.label}</span>
@@ -77,17 +76,17 @@ export default function DocumentSummary() {
         prev.map((j) =>
           j.job_id === event.job_id
             ? {
-                ...j,
-                pipeline_stage: event.stage,
-                job_status:
-                  event.stage === "completed"
-                    ? "completed"
-                    : event.stage === "failed"
+              ...j,
+              pipeline_stage: event.stage,
+              job_status:
+                event.stage === "completed"
+                  ? "completed"
+                  : event.stage === "failed"
                     ? "failed"
                     : event.stage === "cancelled"
-                    ? "cancelled"
-                    : "running",
-              }
+                      ? "cancelled"
+                      : "running",
+            }
             : j,
         ),
       );
@@ -101,7 +100,7 @@ export default function DocumentSummary() {
   useEffect(() => {
     listJobs()
       .then(setJobs)
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   // 완료된 Job의 요약문 로드
@@ -114,7 +113,7 @@ export default function DocumentSummary() {
         .then((doc) =>
           setSummaries((prev) => ({ ...prev, [j.job_id]: doc.summary ?? "" })),
         )
-        .catch(() => {});
+        .catch(() => { });
     });
   }, [jobs]);
 
@@ -165,211 +164,205 @@ export default function DocumentSummary() {
   );
 
   return (
-    <div className="min-h-screen bg-background">
-      <Toaster />
-      <Header
-        userName={sessionData?.name ?? "사용자"}
-        userRole={sessionData?.roles?.[0] ?? "실무 담당자"}
-        notifications={notifications}
-        notificationCount={notifications.filter((n) => n.unread).length}
-        onMarkNotificationRead={markRead}
-      />
+    <MainLayout>
+      <div className="min-h-screen bg-background">
+        <Toaster />
 
-      <div className="border-b border-border px-6 py-4 bg-white">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/staff/dashboard")}>
-            <ArrowLeft className="size-5" />
-          </Button>
-          <h2 className="text-lg font-medium">문서 요약</h2>
-          <Badge variant="outline" className="bg-muted border-border text-muted-foreground">
-            🔒 폐쇄망
-          </Badge>
+        <div className="border-b border-border px-6 py-4 bg-white">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" onClick={() => navigate("/staff/dashboard")}>
+              <ArrowLeft className="size-5" />
+            </Button>
+            <h2 className="text-lg font-medium">문서 요약</h2>
+            <Badge variant="outline" className="bg-muted border-border text-muted-foreground">
+              🔒 폐쇄망
+            </Badge>
+          </div>
         </div>
-      </div>
 
-      <main className="container mx-auto px-6 py-8 max-w-4xl space-y-6">
-        {/* ── 업로드 영역 ── */}
-        <Card>
-          <CardContent className="pt-6">
-            <div
-              className={`border-2 border-dashed rounded-lg p-8 text-center space-y-3 transition-colors ${
-                dragging ? "border-primary bg-primary/5" : "border-border"
-              }`}
-              onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
-              onDragLeave={() => setDragging(false)}
-              onDrop={handleDrop}
-            >
-              <div className="flex justify-center">
-                <div className="size-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                  <Upload className="size-5 text-primary" />
-                </div>
-              </div>
-              <div>
-                <p className="text-foreground font-medium mb-0.5">
-                  PDF를 끌어다 놓거나 파일을 선택하세요
-                </p>
-                <p className="text-sm text-muted-foreground">최대 100MB</p>
-              </div>
-              <Button
-                size="sm"
-                disabled={uploading}
-                onClick={() => fileInputRef.current?.click()}
+        <main className="container mx-auto px-6 py-8 max-w-4xl space-y-6">
+          {/* ── 업로드 영역 ── */}
+          <Card>
+            <CardContent className="pt-6">
+              <div
+                className={`border-2 border-dashed rounded-lg p-8 text-center space-y-3 transition-colors ${dragging ? "border-primary bg-primary/5" : "border-border"
+                  }`}
+                onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+                onDragLeave={() => setDragging(false)}
+                onDrop={handleDrop}
               >
-                {uploading ? "업로드 중..." : "파일 선택"}
-              </Button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".pdf"
-                className="hidden"
-                onChange={handleFileChange}
-              />
-            </div>
-          </CardContent>
-        </Card>
+                <div className="flex justify-center">
+                  <div className="size-10 bg-primary/10 rounded-lg flex items-center justify-center">
+                    <Upload className="size-5 text-primary" />
+                  </div>
+                </div>
+                <div>
+                  <p className="text-foreground font-medium mb-0.5">
+                    PDF를 끌어다 놓거나 파일을 선택하세요
+                  </p>
+                  <p className="text-sm text-muted-foreground">최대 100MB</p>
+                </div>
+                <Button
+                  size="sm"
+                  disabled={uploading}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  {uploading ? "업로드 중..." : "파일 선택"}
+                </Button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".pdf"
+                  className="hidden"
+                  onChange={handleFileChange}
+                />
+              </div>
+            </CardContent>
+          </Card>
 
-        {/* ── 처리 중 ── */}
-        {activeJobs.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">처리 중</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {activeJobs.map((job) => {
-                const stage = job.pipeline_stage ?? "uploaded";
-                const progress = STAGE_PROGRESS[stage] ?? 0;
-                const filename = filenameFromPath(job.file_path);
-                return (
-                  <div key={job.job_id} className="space-y-3">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex items-start gap-3 flex-1">
-                        <FileText className="size-10 text-muted-foreground shrink-0 mt-1" />
-                        <div className="flex-1 min-w-0">
+          {/* ── 처리 중 ── */}
+          {activeJobs.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">처리 중</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {activeJobs.map((job) => {
+                  const stage = job.pipeline_stage ?? "uploaded";
+                  const progress = STAGE_PROGRESS[stage] ?? 0;
+                  const filename = filenameFromPath(job.file_path);
+                  return (
+                    <div key={job.job_id} className="space-y-3">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-start gap-3 flex-1">
+                          <FileText className="size-10 text-muted-foreground shrink-0 mt-1" />
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-foreground truncate">{filename}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {STAGE_LABEL[stage] ?? "처리 중"}
+                            </p>
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="shrink-0"
+                          onClick={() => handleCancel(job.job_id)}
+                        >
+                          <X className="size-4 text-destructive" />
+                        </Button>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Progress value={progress} className="h-2" />
+                      </div>
+
+                      <StageSteps stage={stage} />
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* ── 완료 ── */}
+          {doneJobs.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">완료</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {doneJobs.map((job) => {
+                  const filename = filenameFromPath(job.file_path);
+                  const summary = job.doc_id ? summaries[job.job_id] : "";
+                  return (
+                    <div key={job.job_id} className="flex items-start gap-3">
+                      <FileText className="size-10 text-muted-foreground shrink-0 mt-1" />
+                      <div className="flex-1 min-w-0 space-y-3">
+                        <div className="flex items-center gap-2">
                           <p className="font-medium text-foreground truncate">{filename}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {STAGE_LABEL[stage] ?? "처리 중"}
-                          </p>
+                          <Badge className="bg-[var(--status-approved)] text-white border-transparent shrink-0">
+                            <CheckCircle2 className="size-3 mr-1" />
+                            요약 완료
+                          </Badge>
                         </div>
+
+                        {summary && (
+                          <div className="bg-muted/50 border border-border rounded-lg p-4">
+                            <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed max-h-40 overflow-y-auto">
+                              {summary}
+                            </p>
+                          </div>
+                        )}
+
+                        {job.doc_id && (
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => navigate(`/document/${job.doc_id}`)}
+                            >
+                              전문 보기
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={() =>
+                                navigate("/draft/new", {
+                                  state: {
+                                    sourceDocId: job.doc_id,
+                                    sourceDocName: filename,
+                                    sourceSummary: summary,
+                                  },
+                                })
+                              }
+                            >
+                              📄 이 요약으로 기안 작성
+                            </Button>
+                          </div>
+                        )}
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="shrink-0"
-                        onClick={() => handleCancel(job.job_id)}
-                      >
-                        <X className="size-4 text-destructive" />
-                      </Button>
                     </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          )}
 
-                    <div className="space-y-2">
-                      <Progress value={progress} className="h-2" />
-                    </div>
-
-                    <StageSteps stage={stage} />
-                  </div>
-                );
-              })}
-            </CardContent>
-          </Card>
-        )}
-
-        {/* ── 완료 ── */}
-        {doneJobs.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">완료</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {doneJobs.map((job) => {
-                const filename = filenameFromPath(job.file_path);
-                const summary = job.doc_id ? summaries[job.job_id] : "";
-                return (
-                  <div key={job.job_id} className="flex items-start gap-3">
-                    <FileText className="size-10 text-muted-foreground shrink-0 mt-1" />
-                    <div className="flex-1 min-w-0 space-y-3">
-                      <div className="flex items-center gap-2">
+          {/* ── 실패 / 취소 ── */}
+          {failedJobs.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base text-destructive">실패 / 취소</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {failedJobs.map((job) => {
+                  const filename = filenameFromPath(job.file_path);
+                  return (
+                    <div key={job.job_id} className="flex items-start gap-3">
+                      <AlertCircle className="size-5 text-destructive shrink-0 mt-0.5" />
+                      <div className="flex-1 min-w-0">
                         <p className="font-medium text-foreground truncate">{filename}</p>
-                        <Badge className="bg-[var(--status-approved)] text-white border-transparent shrink-0">
-                          <CheckCircle2 className="size-3 mr-1" />
-                          요약 완료
-                        </Badge>
+                        <p className="text-sm text-muted-foreground">
+                          {job.job_status === "cancelled"
+                            ? "취소됨"
+                            : job.error_message ?? "처리 중 오류가 발생했습니다."}
+                        </p>
                       </div>
-
-                      {summary && (
-                        <div className="bg-muted/50 border border-border rounded-lg p-4">
-                          <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed max-h-40 overflow-y-auto">
-                            {summary}
-                          </p>
-                        </div>
-                      )}
-
-                      {job.doc_id && (
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => navigate(`/document/${job.doc_id}`)}
-                          >
-                            전문 보기
-                          </Button>
-                          <Button
-                            size="sm"
-                            onClick={() =>
-                              navigate("/draft/new", {
-                                state: {
-                                  sourceDocId: job.doc_id,
-                                  sourceDocName: filename,
-                                  sourceSummary: summary,
-                                },
-                              })
-                            }
-                          >
-                            📄 이 요약으로 기안 작성
-                          </Button>
-                        </div>
-                      )}
                     </div>
-                  </div>
-                );
-              })}
-            </CardContent>
-          </Card>
-        )}
+                  );
+                })}
+              </CardContent>
+            </Card>
+          )}
 
-        {/* ── 실패 / 취소 ── */}
-        {failedJobs.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base text-destructive">실패 / 취소</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {failedJobs.map((job) => {
-                const filename = filenameFromPath(job.file_path);
-                return (
-                  <div key={job.job_id} className="flex items-start gap-3">
-                    <AlertCircle className="size-5 text-destructive shrink-0 mt-0.5" />
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-foreground truncate">{filename}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {job.job_status === "cancelled"
-                          ? "취소됨"
-                          : job.error_message ?? "처리 중 오류가 발생했습니다."}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
-            </CardContent>
-          </Card>
-        )}
-
-        {/* 아무 Job도 없을 때 */}
-        {jobs.length === 0 && (
-          <p className="text-center text-sm text-muted-foreground py-4">
-            업로드된 문서가 없습니다.
-          </p>
-        )}
-      </main>
-    </div>
+          {/* 아무 Job도 없을 때 */}
+          {jobs.length === 0 && (
+            <p className="text-center text-sm text-muted-foreground py-4">
+              업로드된 문서가 없습니다.
+            </p>
+          )}
+        </main>
+      </div>
+    </MainLayout>
   );
 }
