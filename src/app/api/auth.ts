@@ -176,6 +176,45 @@ export async function forceLogoutUserAPI(userId: number): Promise<void> {
     }
 }
 
+export interface AdminStats {
+    total_users: number;
+    total_documents: number;
+    total_rag_queries: number;
+    documents_this_month: number;
+    rag_queries_this_week: number;
+    category_distribution: { category: string; count: number }[];
+}
+
+export async function getAdminStatsAPI(): Promise<AdminStats | null> {
+    try {
+        const response = await fetch(`${API_BASE_URL}/admin/stats`, {
+            method: "GET",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+        });
+        if (!response.ok) return null;
+        return response.json();
+    } catch {
+        return null;
+    }
+}
+
+export async function getUserActivityAPI(userId?: number) {
+    const url = userId
+        ? `${API_BASE_URL}/users/activity?user_id=${userId}`
+        : `${API_BASE_URL}/users/activity`;
+    const response = await fetch(url, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+    });
+    if (!response.ok) {
+        const err = await response.json().catch(() => null);
+        throw new Error(err?.detail || "활동 내역을 불러오지 못했습니다.");
+    }
+    return response.json();
+}
+
 export async function toggleUserActivationAPI(userId: number, targetDeletedStatus: boolean) {
     try {
         // Crucial: Matches your FastAPI router prefix "/auth" and endpoint structure

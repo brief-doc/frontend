@@ -8,65 +8,105 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs"
 import { ArrowLeft, User, KeyRound } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import { PasswordChangeModal } from "../components/PasswordChangeModal";
+import { getUserActivityAPI } from "../api/auth";
+import { getDocumentList } from "../api/document";
+import type { DocItem } from "../types/document";
+
+interface RagQueryItem {
+  id: number;
+  query: string;
+  timestamp: string;
+}
+
+interface DraftItem {
+  id: number;
+  title: string;
+  date: string;
+  status: string;
+  statusLabel: string;
+}
+
+const STATUS_LABEL: Record<string, string> = {
+  draft: "임시저장",
+  pending: "대기",
+  approved: "승인",
+  rejected: "반려",
+  canceled: "취소",
+};
+
+function formatDate(iso: string) {
+  if (!iso) return "";
+  return new Date(iso).toLocaleString("ko-KR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 
 export default function MyPage() {
   const navigate = useNavigate();
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [isAuthorized, setIsAuthorized] = useState(false);
 
-  // 1. 세션 정보 읽기 (안전한 예외 처리 적용)
-  const rawData = sessionStorage.getItem('user_session');
+  const rawData = sessionStorage.getItem("user_session");
   const sessionData = rawData ? JSON.parse(rawData) : null;
 
-  // 💡 sessionData가 null이어도 하단 가짜 데이터나 마크업이 터지지 않도록 완벽히 방어합니다.
   const roles: string[] = sessionData?.roles ?? [];
   const userName = sessionData?.user_name ?? sessionData?.name ?? "사용자";
   const userEmail = sessionData?.email ?? "no-reply@example.com";
   const userId = sessionData?.id ?? null;
 
-  // 🔒 [보안 가드] 로그인 여부 검증 및 무한루프 방지
+  const [joinDate, setJoinDate] = useState<string>("...");
+  const [ragQueries, setRagQueries] = useState<RagQueryItem[]>([]);
+  const [drafts, setDrafts] = useState<DraftItem[]>([]);
+  const [documents, setDocuments] = useState<DocItem[]>([]);
+
   useEffect(() => {
     if (!sessionData) {
-      // 불완전하게 남아있을 수 있는 잔여 세션 데이터 청소
       sessionStorage.clear();
-
-      // 💡 흰 화면에 갇히는 걸 막기 위해 알림을 띄우고 즉시 replace 모드로 튕겨냅니다.
       toast.error("로그인이 필요한 페이지입니다. 로그인 화면으로 이동합니다.");
       navigate("/", { replace: true });
     } else {
       setIsAuthorized(true);
     }
-  }, [navigate]); // 의존성 배열을 비워 무한 렌더링 스노우볼 차단
+  }, [navigate]);
 
-  // 사용자의 권한에 맞는 대시보드로 안전 리다이렉트
+  useEffect(() => {
+    if (!isAuthorized) return;
+
+    getUserActivityAPI().then((data) => {
+      if (!data) return;
+      setJoinDate(data.user?.joinDate ?? "");
+      setRagQueries(
+        (data.rag_queries ?? []).map((q: any) => ({
+          id: q.query_id,
+          query: q.query_text,
+          timestamp: formatDate(q.created_at),
+        }))
+      );
+      setDrafts(
+        (data.drafts ?? []).map((d: any) => ({
+          id: d.draft_id,
+          title: d.title,
+          date: formatDate(d.created_at),
+          status: d.status,
+          statusLabel: STATUS_LABEL[d.status] ?? d.status,
+        }))
+      );
+    }).catch(() => {});
+
+    getDocumentList({ page: 1, limit: 10 }).then((res) => {
+      if (res) setDocuments(res.items);
+    }).catch(() => {});
+  }, [isAuthorized]);
+
   const handleBackToDashboard = () => {
-    if (roles.includes("관리자")) {
-      navigate("/admin/dashboard");
-    } else if (roles.includes("결재권자")) {
-      navigate("/staff/dashboard/approver");
-    } else {
-      navigate("/staff/dashboard");
-    }
+    if (roles.includes("관리자")) navigate("/admin/dashboard");
+    else if (roles.includes("결재권자")) navigate("/staff/dashboard/approver");
+    else navigate("/staff/dashboard");
   };
-
-  // 2. 템플릿용 가짜 데이터 정의
-  const ragQueries = [
-    { id: 1, query: "가명정보 결합 시 안전성 확보 조치는 무엇인가요?", timestamp: "2026.06.02 14:32", sources: 3 },
-    { id: 2, query: "개인정보 처리방침 수립 시 필수 포함 사항은?", timestamp: "2026.06.01 10:15", sources: 2 },
-    { id: 3, query: "데이터 결합 신청 절차", timestamp: "2026.05.30 16:20", sources: 4 },
-  ];
-
-  const documents = [
-    { id: 1, title: "신규_공모사업_지침", category: "공모사업", uploadDate: "2026.06.01", status: "요약 완료" },
-    { id: 2, title: "감사원_처분요구서_2026", category: "감사", uploadDate: "2026.05.30", status: "요약 완료" },
-    { id: 3, title: "가명정보_처리_가이드라인", category: "가이드라인", uploadDate: "2026.05.28", status: "요약 완료" },
-  ];
-
-  const drafts = [
-    { id: 1, title: "데이터 결합 가이드 검토", type: "기안", date: "2026.06.01", status: "approved", statusLabel: "승인" },
-    { id: 2, title: "가명정보 처리 승인 요청", type: "기안", date: "2026.06.01", status: "pending", statusLabel: "대기" },
-    { id: 3, title: "감사원 처분요구서 대응", type: "기안", date: "2026.05.30", status: "rejected", statusLabel: "반려" },
-  ];
 
   const roleColors: Record<string, string> = {
     "실무 담당자": "bg-[var(--status-info)] text-white border-transparent",
@@ -78,9 +118,10 @@ export default function MyPage() {
     approved: "bg-[var(--status-approved)] text-white border-transparent",
     pending: "bg-[var(--status-pending)] text-white border-transparent",
     rejected: "bg-[var(--status-rejected)] text-white border-transparent",
+    draft: "bg-muted text-muted-foreground border-transparent",
+    canceled: "bg-muted text-muted-foreground border-transparent",
   };
 
-  // 💡 [안전 장치] 아직 로그인 여부가 확인되지 않은 상태라면 가벼운 로딩 스피너만 노출합니다.
   if (!isAuthorized) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-background text-muted-foreground gap-3">
@@ -104,7 +145,6 @@ export default function MyPage() {
               <p className="text-xs text-muted-foreground mt-0.5">본인의 시스템 이용 프로필과 활동 이력을 확인합니다.</p>
             </div>
           </div>
-
           <Button onClick={() => setIsPasswordModalOpen(true)} className="gap-2 shadow-sm">
             <KeyRound className="size-4" />
             비밀번호 변경
@@ -131,22 +171,17 @@ export default function MyPage() {
                       ))}
                     </div>
                   </div>
-                  <div className="space-y-0.5 text-sm text-muted-foreground">
-                    <p>{userEmail}</p>
-                    <p className="text-xs text-slate-400">개인정보보호과 · 주무관</p>
-                  </div>
+                  <p className="text-sm text-muted-foreground">{userEmail}</p>
                 </div>
               </div>
-
               <div className="text-left sm:text-right border-t sm:border-t-0 pt-3 sm:pt-0 w-full sm:w-auto">
                 <span className="text-xs text-muted-foreground block">계정 가입일</span>
-                <span className="text-sm font-medium text-foreground">2025.03.15</span>
+                <span className="text-sm font-medium text-foreground">{joinDate || "비공개"}</span>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* 탭 인터페이스 영역 */}
         <Tabs defaultValue="queries" className="w-full">
           <TabsList className="grid w-full grid-cols-3 max-w-[500px]">
             <TabsTrigger value="queries">RAG 질의 이력 ({ragQueries.length})</TabsTrigger>
@@ -160,20 +195,16 @@ export default function MyPage() {
                 <CardTitle className="text-base font-semibold">RAG 문서 질의 이력</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                {ragQueries.map((query) => (
-                  <div key={query.id} className="p-4 border border-border rounded-lg hover:bg-muted/30 transition-colors">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-foreground mb-1">{query.query}</p>
-                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                          <span>{query.timestamp}</span>
-                          <span>·</span>
-                          <Badge variant="outline" className="text-[10px] px-1.5 py-0">출처 {query.sources}건</Badge>
-                        </div>
-                      </div>
+                {ragQueries.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-4 text-center">질의 이력이 없습니다.</p>
+                ) : (
+                  ragQueries.map((q) => (
+                    <div key={q.id} className="p-4 border border-border rounded-lg hover:bg-muted/30 transition-colors">
+                      <p className="text-sm font-medium text-foreground mb-1">{q.query}</p>
+                      <span className="text-xs text-muted-foreground">{q.timestamp}</span>
                     </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -195,18 +226,24 @@ export default function MyPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {documents.map((doc) => (
-                        <tr key={doc.id} className="border-b border-border hover:bg-muted/20 transition-colors text-sm">
-                          <td className="px-4 py-3 font-medium text-foreground">{doc.title}</td>
-                          <td className="px-4 py-3">
-                            <Badge variant="secondary" className="text-xs font-normal">{doc.category}</Badge>
-                          </td>
-                          <td className="px-4 py-3 text-muted-foreground">{doc.uploadDate}</td>
-                          <td className="px-4 py-3">
-                            <Badge className="bg-[var(--status-approved)] text-white border-transparent text-xs">{doc.status}</Badge>
-                          </td>
+                      {documents.length === 0 ? (
+                        <tr>
+                          <td colSpan={4} className="px-4 py-6 text-center text-sm text-muted-foreground">업로드한 문서가 없습니다.</td>
                         </tr>
-                      ))}
+                      ) : (
+                        documents.map((doc) => (
+                          <tr key={doc.id} className="border-b border-border hover:bg-muted/20 transition-colors text-sm">
+                            <td className="px-4 py-3 font-medium text-foreground">{doc.title}</td>
+                            <td className="px-4 py-3">
+                              <Badge variant="secondary" className="text-xs font-normal">{doc.category}</Badge>
+                            </td>
+                            <td className="px-4 py-3 text-muted-foreground">{doc.date}</td>
+                            <td className="px-4 py-3">
+                              <Badge className="bg-[var(--status-approved)] text-white border-transparent text-xs">{doc.status}</Badge>
+                            </td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -225,22 +262,26 @@ export default function MyPage() {
                     <thead className="bg-muted/40 border-b border-border text-xs font-semibold text-muted-foreground">
                       <tr>
                         <th className="px-4 py-3">제목</th>
-                        <th className="px-4 py-3">유형</th>
                         <th className="px-4 py-3">일시</th>
                         <th className="px-4 py-3">상태</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {drafts.map((draft) => (
-                        <tr key={draft.id} className="border-b border-border hover:bg-muted/20 transition-colors text-sm">
-                          <td className="px-4 py-3 font-medium text-foreground">{draft.title}</td>
-                          <td className="px-4 py-3 text-muted-foreground">{draft.type}</td>
-                          <td className="px-4 py-3 text-muted-foreground">{draft.date}</td>
-                          <td className="px-4 py-3">
-                            <Badge className={`${statusColors[draft.status]} text-xs`}>{draft.statusLabel}</Badge>
-                          </td>
+                      {drafts.length === 0 ? (
+                        <tr>
+                          <td colSpan={3} className="px-4 py-6 text-center text-sm text-muted-foreground">기안 이력이 없습니다.</td>
                         </tr>
-                      ))}
+                      ) : (
+                        drafts.map((draft) => (
+                          <tr key={draft.id} className="border-b border-border hover:bg-muted/20 transition-colors text-sm">
+                            <td className="px-4 py-3 font-medium text-foreground">{draft.title}</td>
+                            <td className="px-4 py-3 text-muted-foreground">{draft.date}</td>
+                            <td className="px-4 py-3">
+                              <Badge className={`${statusColors[draft.status]} text-xs`}>{draft.statusLabel}</Badge>
+                            </td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>
