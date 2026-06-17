@@ -8,7 +8,7 @@ import { Users, FileText, MessageSquare, Cpu, TrendingUp, Power, PowerOff } from
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import toast from "react-hot-toast";
 // Added toggleUserActivationAPI to the imports
-import { getMeAPI, getUsersAPI, resetUserPasswordAPI, forceLogoutUserAPI, toggleUserActivationAPI } from "../api/auth";
+import { getMeAPI, getUsersAPI, resetUserPasswordAPI, forceLogoutUserAPI, toggleUserActivationAPI, getAdminStatsAPI, type AdminStats } from "../api/auth";
 
 interface AdminUser {
   id: number;
@@ -28,6 +28,7 @@ export default function AdminDashboard() {
   const [pendingActionId, setPendingActionId] = useState<number | null>(null);
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [me, setMe] = useState<{ name: string; roles: string[] } | null>(null);
+  const [adminStats, setAdminStats] = useState<AdminStats | null>(null);
 
   const loadUsers = async () => {
     setLoadingUsers(true);
@@ -58,6 +59,8 @@ export default function AdminDashboard() {
       if (meData?.roles?.includes("관리자")) {
         setIsAdmin(true);
         await loadUsers();
+        const stats = await getAdminStatsAPI();
+        setAdminStats(stats);
       } else {
         setIsAdmin(false);
       }
@@ -92,29 +95,29 @@ export default function AdminDashboard() {
     {
       icon: Users,
       label: "전체 사용자 수",
-      value: loadingUsers ? "..." : users.length.toString(),
-      trend: "+3",
-      trendLabel: "이번 달",
+      value: adminStats ? adminStats.total_users.toLocaleString() : (loadingUsers ? "..." : users.length.toString()),
+      trend: null,
+      trendLabel: "활성 계정",
     },
     {
       icon: FileText,
       label: "총 업로드 문서 수",
-      value: "1,234",
-      trend: "+156",
+      value: adminStats ? adminStats.total_documents.toLocaleString() : "...",
+      trend: adminStats ? `+${adminStats.documents_this_month}` : null,
       trendLabel: "이번 달",
     },
     {
       icon: MessageSquare,
       label: "RAG 질의 건수(누적)",
-      value: "8,921",
-      trend: "+421",
+      value: adminStats ? adminStats.total_rag_queries.toLocaleString() : "...",
+      trend: adminStats ? `+${adminStats.rag_queries_this_week}` : null,
       trendLabel: "이번 주",
     },
     {
       icon: Cpu,
       label: "로컬 LLM 호출 횟수",
-      value: "12,456",
-      trend: "+892",
+      value: adminStats ? adminStats.total_rag_queries.toLocaleString() : "...",
+      trend: adminStats ? `+${adminStats.rag_queries_this_week}` : null,
       trendLabel: "이번 주",
     },
   ];
@@ -188,10 +191,12 @@ export default function AdminDashboard() {
                       <span className="text-3xl font-medium text-foreground">
                         {stat.value}
                       </span>
-                      <div className="flex items-center gap-1 text-xs text-[var(--status-approved)]">
-                        <TrendingUp className="size-3" />
-                        {stat.trend}
-                      </div>
+                      {stat.trend && (
+                        <div className="flex items-center gap-1 text-xs text-[var(--status-approved)]">
+                          <TrendingUp className="size-3" />
+                          {stat.trend}
+                        </div>
+                      )}
                     </div>
                     <p className="text-xs text-muted-foreground">
                       {stat.trendLabel}
