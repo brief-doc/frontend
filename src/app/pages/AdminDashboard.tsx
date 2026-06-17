@@ -154,12 +154,13 @@ export default function AdminDashboard() {
     "관리자": "bg-primary text-white border-transparent",
   };
 
-  const categoryData = [
-    { name: "감사", value: 234, color: "#DC2626" },
-    { name: "공모사업", value: 189, color: "#F59E0B" },
-    { name: "가이드라인", value: 445, color: "#2B6E72" },
-    { name: "기타", value: 366, color: "#3B82F6" },
-  ];
+  const CHART_COLORS = ["#2B6E72", "#F59E0B", "#DC2626", "#3B82F6", "#8B5CF6", "#10B981", "#F97316", "#6366F1"];
+
+  const categoryData = (adminStats?.category_distribution ?? []).map((item, idx) => ({
+    name: item.category,
+    value: item.count,
+    color: CHART_COLORS[idx % CHART_COLORS.length],
+  }));
 
   if (isAdmin === null) {
     return (
@@ -217,6 +218,11 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="h-80">
+              {categoryData.length === 0 ? (
+                <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
+                  업로드된 문서가 없습니다.
+                </div>
+              ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
@@ -237,6 +243,7 @@ export default function AdminDashboard() {
                   <Legend />
                 </PieChart>
               </ResponsiveContainer>
+              )}
             </div>
           </CardContent>
         </Card>
