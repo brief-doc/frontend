@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { useNavigate, useLocation } from "react-router";
 import {
   Home, ClipboardList, LayoutDashboard, Users,
@@ -6,8 +6,8 @@ import {
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import { Button } from "./ui/button";
-// 💡 [수정] TypeScript 가이드에 맞춰 중괄호 { } 를 추가하여 올바르게 임포트합니다.
 import { NotificationDropdown } from "./NotificationDropdown";
+import { useNotifications } from "../hooks/useNotifications";
 
 export function MainLayout({ children, currentUser }: { children: React.ReactNode; currentUser?: any }) {
   const navigate = useNavigate();
@@ -24,33 +24,8 @@ export function MainLayout({ children, currentUser }: { children: React.ReactNod
   const isAdmin = roles.includes("관리자") || roles.includes("admin");
   const isApprover = roles.includes("결재권자") || roles.includes("approver");
 
-  // 🔔 알림 시스템 상태 관리
-  const [notifications, setNotifications] = useState([
-    {
-      id: 1,
-      message: "새로운 가명정보 결합 신청서가 접수되었습니다.",
-      time: "10분 전",
-      unread: true,
-      link: "/approver/dashboard",
-    },
-    {
-      id: 2,
-      message: "업로드하신 '신규_공모사업_지침' 문서의 요약이 완료되었습니다.",
-      time: "1시간 전",
-      unread: true,
-      link: "/mypage",
-    },
-  ]);
-
+  const { notifications, markRead } = useNotifications();
   const unreadCount = notifications.filter((n) => n.unread).length;
-
-  const handleMarkAsRead = (id: number) => {
-    setNotifications((prev) =>
-      prev.map((notif) =>
-        notif.id === id ? { ...notif, unread: false } : notif
-      )
-    );
-  };
 
   const handleLogout = () => {
     sessionStorage.clear();
@@ -118,7 +93,7 @@ export function MainLayout({ children, currentUser }: { children: React.ReactNod
             <NotificationDropdown
               notifications={notifications}
               count={unreadCount}
-              onMarkRead={handleMarkAsRead}
+              onMarkRead={markRead}
             />
 
             <div className="h-4 w-px bg-border mx-1" />
