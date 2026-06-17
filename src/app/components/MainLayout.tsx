@@ -81,8 +81,8 @@ export function MainLayout({ children, currentUser }: { children: React.ReactNod
 
       {/* 1. 좌측 사이드바 영역 */}
       <aside className="w-64 border-r border-border bg-card flex flex-col fixed h-screen">
-        <div className="p-6 border-b border-border">
-          <span className="font-bold text-lg text-primary tracking-tight">가명정보 가이드 시스템</span>
+        <div className="h-16 p-4 border-b border-border flex items-center justify-center">
+          <span className="font-bold text-lg text-primary tracking-tight leading-none">가명정보 가이드 시스템</span>
         </div>
         <nav className="flex-1 space-y-1 px-3 py-4 overflow-y-auto">
           {menuItems.map((item, idx) => {
@@ -108,11 +108,8 @@ export function MainLayout({ children, currentUser }: { children: React.ReactNod
       {/* 2. 우측 메인 콘텐츠 및 상단 헤더 레이아웃 */}
       <div className="flex-1 pl-64 flex flex-col min-h-screen">
 
-        <header className="h-16 border-b border-border bg-card/50 backdrop-blur px-8 flex items-center justify-between sticky top-0 z-40">
+        <header className="h-16 border-b border-border bg-card/50 backdrop-blur px-7 flex items-center justify-between sticky top-0 z-40">
           <div className="flex items-center gap-2">
-            <span className="text-xs px-2 py-1 bg-muted rounded-md text-muted-foreground font-mono">
-              내부 폐쇄망 정보계
-            </span>
           </div>
 
           <div className="flex items-center gap-4">
