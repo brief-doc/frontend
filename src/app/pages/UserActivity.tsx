@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { MainLayout } from "../components/MainLayout";
+import { API_BASE_URL } from "../../lib/api";
 import {
   Card,
   CardContent,
@@ -44,8 +45,8 @@ export default function UserActivity() {
 
         // 관리자 모드면 특정 user_id 쿼리를 붙이고, 일반 모드면 본인 조회 호출
         const url = userId
-          ? `http://127.0.0.1:8000/users/activity?user_id=${userId}`
-          : `http://127.0.0.1:8000/users/activity`;
+          ? `${API_BASE_URL}/users/activity?user_id=${userId}`
+          : `${API_BASE_URL}/users/activity`;
 
         const response = await fetch(url, {
           method: "GET",

@@ -41,24 +41,35 @@ export default function StaffDashboard({ userRole, showApproverMenu, showAdminMe
   const LIMIT = 5;                                 // 한 페이지에 보여줄 개수
   const [sortBy, setSortBy] = useState("created_at");
 
-  useEffect(() => {
-    const fetchList = async () => {
-      const data = await getDocumentList({
-        page,
-        limit: LIMIT,
-        category,
-        keyword,
-        sort_by: sortBy
-      });
+  const fetchDocuments = useCallback(async (targetPage: number = page) => {
+    const data = await getDocumentList({
+      page: targetPage,
+      limit: LIMIT,
+      category,
+      keyword,
+      sort_by: sortBy,
+    });
 
-      if (data) {
-        setDocuments(data.items);
-        setTotalCount(data.total_count);
-      }
-    };
-
-    fetchList();
+    if (data) {
+      setDocuments(data.items);
+      setTotalCount(data.total_count);
+    }
   }, [page, category, keyword, sortBy]);
+
+  const handleOpenDocument = (doc: DocItem) => {
+    if (doc.status === "완료") {
+      navigate(`/document/${doc.id}`);
+      return;
+    }
+
+    navigate("/document-summary", {
+      state: { docId: doc.id },
+    });
+  };
+
+  useEffect(() => {
+    fetchDocuments();
+  }, [fetchDocuments]);
 
   // 카테고리나 검색어가 바뀌면 페이지를 '1'로 리셋
   const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -80,7 +91,7 @@ export default function StaffDashboard({ userRole, showApproverMenu, showAdminMe
       const data = await getDraftList({
         status: statusFilter === "all" ? undefined : statusFilter,
         sort_by: SORT_MAP[sortOrder] ?? "created_at",
-        limit: 3,
+        limit: 2,
       });
       setDrafts(data.items);
     } catch {
@@ -122,10 +133,19 @@ export default function StaffDashboard({ userRole, showApproverMenu, showAdminMe
       const isSuccess = await deletedDocument(selectedDocId);
 
       if (isSuccess) {
-        setDocuments(documents.filter(doc => doc.id !== selectedDocId));
-
         setIsDeleteModalOpen(false);
         setSelectedDocId(null);
+
+        // 삭제 후 총 개수/페이지를 재계산해서 빈 칸 없이 목록을 채운다.
+        const nextTotalCount = Math.max(totalCount - 1, 0);
+        const nextTotalPages = Math.max(1, Math.ceil(nextTotalCount / LIMIT));
+        const nextPage = Math.min(page, nextTotalPages);
+
+        if (nextPage !== page) {
+          setPage(nextPage);
+        } else {
+          await fetchDocuments(nextPage);
+        }
 
         toast.success("문서를 성공적으로 삭제했습니다.", {
           position: "top-center",
@@ -204,9 +224,9 @@ export default function StaffDashboard({ userRole, showApproverMenu, showAdminMe
             </Card>
           </div>
 
-          <div className="grid grid-cols-3 gap-6">
-            <div className="col-span-2">
-              <Card>
+          <div className="grid grid-cols-3 gap-6 items-stretch">
+            <div className="col-span-2 h-full">
+              <Card className="h-full">
                 <CardHeader className="pb-4">
                   <div className="flex items-center justify-between mb-3">
                     <CardTitle>내 기안 현황</CardTitle>
@@ -285,8 +305,8 @@ export default function StaffDashboard({ userRole, showApproverMenu, showAdminMe
               </Card>
             </div>
 
-            <div>
-              <Card>
+            <div className="h-full">
+              <Card className="h-full">
                 <CardHeader className="pb-4">
                   <div className="flex items-center justify-between">
                     <CardTitle>알림</CardTitle>
@@ -304,7 +324,7 @@ export default function StaffDashboard({ userRole, showApproverMenu, showAdminMe
                         새로운 알림이 없습니다
                       </p>
                     ) : (
-                      notifications.slice(0, 3).map((notif) => (
+                      notifications.slice(0, 4).map((notif) => (
                         <div
                           key={notif.id}
                           className="flex gap-3 p-3 border border-border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
@@ -344,9 +364,10 @@ export default function StaffDashboard({ userRole, showApproverMenu, showAdminMe
                       onChange={handleCategoryChange}
                       className="px-3 py-1.5 text-sm border border-border rounded-md bg-input-background focus:outline-none focus:ring-2 focus:ring-ring" >
                       <option>전체</option>
-                      <option>감사</option>
-                      <option>공모사업</option>
-                      <option>가이드라인</option>
+                      <option>지식재산법</option>
+                      <option>행정법</option>
+                      <option>형사법</option>
+                      <option>민사법</option>
                       <option>기타</option>
                     </select>
                   </div>
@@ -427,10 +448,7 @@ export default function StaffDashboard({ userRole, showApproverMenu, showAdminMe
                           <tr
                             key={doc.id}
                             className="border-b border-border hover:bg-muted/30 cursor-pointer transition-colors"
-                            onClick={() =>
-
-                              navigate(`/document/${doc.id}`)
-                            }
+                            onClick={() => handleOpenDocument(doc)}
                           >
                             <td className="px-4 py-3 text-sm text-foreground">
                               {doc.title}
@@ -456,7 +474,7 @@ export default function StaffDashboard({ userRole, showApproverMenu, showAdminMe
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    navigate(`/document/${doc.id}`);
+                                    handleOpenDocument(doc);
                                   }}
                                   className="p-1 hover:bg-muted rounded"
                                 >
