@@ -32,6 +32,7 @@ export const STAGE_LABEL: Record<string, string> = {
 };
 
 export function isActive(job: PipelineJob): boolean {
+  if (job.is_cancelled) return false;
   return job.job_status === "pending" || job.job_status === "running";
 }
 

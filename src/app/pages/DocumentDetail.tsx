@@ -22,6 +22,8 @@ import {
   DropdownMenuTrigger,
 } from "../components/ui/dropdown-menu";
 import { ArrowLeft, Edit, Trash2, Download, FilePen } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { getDocumentDetail, deletedDocument, updateDocument } from "../api/document";
 import type { DocDetailItem } from "../types/document";
 
@@ -278,30 +280,30 @@ export default function DocumentDetail() {
       </div>
 
       {/* 메인 뷰어 영역 */}
-      <main className="container mx-auto px-6 py-8 max-w-7xl h-[calc(100vh-200px)]">
-        <div className="grid grid-cols-2 gap-6 h-full">
+      <main className="container mx-auto px-6 py-8 max-w-7xl h-[calc(100vh-200px)] min-h-0">
+        <div className="grid grid-cols-2 gap-6 h-full min-h-0">
           {/* 왼쪽 카드: 원문 */}
-          <Card className="flex flex-col">
+          <Card className="flex flex-col min-h-0">
             <CardHeader className="shrink-0">
               <CardTitle className="text-base">원문</CardTitle>
             </CardHeader>
-            <CardContent className="flex-1 overflow-hidden">
+            <CardContent className="flex-1 overflow-hidden min-h-0">
               <div className="bg-muted/30 rounded-lg p-4 h-full overflow-y-auto">
-                <div className="prose prose-sm max-w-none">
-                  <div className="space-y-4 text-sm leading-relaxed text-foreground whitespace-pre-wrap">
+                <div className="prose prose-sm max-w-none text-foreground">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
                     {content}
-                  </div>
+                  </ReactMarkdown>
                 </div>
               </div>
             </CardContent>
           </Card>
 
           {/* 오른쪽 카드: 요약본 */}
-          <Card className="flex flex-col">
+          <Card className="flex flex-col min-h-0">
             <CardHeader className="shrink-0">
               <CardTitle className="text-base">요약본</CardTitle>
             </CardHeader>
-            <CardContent className="flex-1 overflow-hidden">
+            <CardContent className="flex-1 overflow-hidden min-h-0">
               {isEditing ? (
                 <Textarea
                   value={summary}
@@ -310,8 +312,10 @@ export default function DocumentDetail() {
                 />
               ) : (
                 <div className="bg-muted/30 rounded-lg p-4 h-full overflow-y-auto">
-                  <div className="space-y-2 text-sm leading-relaxed text-foreground whitespace-pre-wrap">
-                    {summary}
+                  <div className="prose prose-sm max-w-none text-foreground">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {summary}
+                    </ReactMarkdown>
                   </div>
                 </div>
               )}

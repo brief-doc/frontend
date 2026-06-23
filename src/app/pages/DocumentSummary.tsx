@@ -1,17 +1,20 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { MainLayout } from "../components/MainLayout";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Progress } from "../components/ui/progress";
 import { Badge } from "../components/ui/badge";
 import toast, { Toaster } from "react-hot-toast";
-import { ArrowLeft, Upload, FileText, X, CheckCircle2, AlertCircle } from "lucide-react";
-import { useNotifications } from "../hooks/useNotifications";
+import { ArrowLeft, Upload, FileText, X } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { subscribeSSE } from "../api/notification";
 import {
   uploadDocument,
-  listJobs,
   cancelJob,
+  getJob,
+  listJobs,
   isActive,
   filenameFromPath,
   STAGE_PROGRESS,
@@ -60,14 +63,20 @@ function StageSteps({ stage }: { stage: string | null }) {
 
 export default function DocumentSummary() {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const locationState = location.state as { docId?: number } | null;
+  const selectedDocId = locationState?.docId ?? null;
+
   const [jobs, setJobs] = useState<PipelineJob[]>([]);
-  const [summaries, setSummaries] = useState<Record<number, string>>({});
+  const [currentJobId, setCurrentJobId] = useState<number | null>(null);
+  const [extractedTexts, setExtractedTexts] = useState<Record<number, string>>({});
+  const [summaryTexts, setSummaryTexts] = useState<Record<number, string>>({});
+  const [selectedDocContent, setSelectedDocContent] = useState("");
+  const [selectedDocSummary, setSelectedDocSummary] = useState("");
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const rawData = sessionStorage.getItem("user_session");
-  const sessionData = rawData ? JSON.parse(rawData) : null;
 
   // SSE pipeline_progress 이벤트 수신 → 해당 Job 단계 업데이트
   const handlePipelineProgress = useCallback(
@@ -94,38 +103,130 @@ export default function DocumentSummary() {
     [],
   );
 
-  const { notifications, markRead } = useNotifications(handlePipelineProgress);
-
-  // 마운트 시 기존 Job 목록 로드
+  // 이 화면은 알림 목록이 필요 없고 파이프라인 진행 이벤트만 필요하므로 경량 SSE만 구독
   useEffect(() => {
+    const es = subscribeSSE(() => { }, undefined, handlePipelineProgress);
+    return () => es.close();
+  }, [handlePipelineProgress]);
+
+  // StaffDashboard에서 넘어온 문서(docId)는 즉시 원문/요약 조회
+  useEffect(() => {
+    if (!selectedDocId) return;
+
+    getDocumentDetail(selectedDocId)
+      .then((doc) => {
+        setSelectedDocContent(doc.content ?? "");
+        setSelectedDocSummary(doc.summary ?? "");
+      })
+      .catch(() => {
+        setSelectedDocContent("");
+        setSelectedDocSummary("");
+      });
+  }, [selectedDocId]);
+
+  // StaffDashboard에서 넘어온 문서(docId)에 해당하는 파이프라인 Job을 연결
+  // 요약중 문서는 이 화면에서도 현재 단계/취소 버튼을 동일하게 사용할 수 있어야 함
+  useEffect(() => {
+    if (!selectedDocId) return;
+
     listJobs()
-      .then(setJobs)
-      .catch(() => { });
-  }, []);
+      .then((allJobs) => {
+        const matched = allJobs.find((j) => j.doc_id === selectedDocId);
+        if (!matched) return;
 
-  // 완료된 Job의 요약문 로드
+        setJobs([matched]);
+        setCurrentJobId(matched.job_id);
+      })
+      .catch(() => { });
+  }, [selectedDocId]);
+
+  // SSE는 stage 중심이라 doc_id 반영이 늦을 수 있어 현재 작업 상세를 주기적으로 동기화
   useEffect(() => {
-    const completed = jobs.filter(
-      (j) => j.job_status === "completed" && j.doc_id && !summaries[j.job_id],
+    if (currentJobId === null) return;
+
+    let cancelled = false;
+
+    const syncCurrentJob = async () => {
+      try {
+        const latest = await getJob(currentJobId);
+        if (cancelled) return;
+
+        setJobs((prev) => {
+          const idx = prev.findIndex((j) => j.job_id === currentJobId);
+          if (idx === -1) return [latest, ...prev];
+
+          const next = [...prev];
+          next[idx] = { ...next[idx], ...latest };
+          return next;
+        });
+
+        const done =
+          latest.job_status === "completed" ||
+          latest.job_status === "failed" ||
+          latest.job_status === "cancelled";
+
+        if (done) {
+          clearInterval(intervalId);
+        }
+      } catch {
+        // 네트워크 일시 오류는 다음 주기에 재시도
+      }
+    };
+
+    syncCurrentJob();
+    const intervalId = setInterval(syncCurrentJob, 2000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(intervalId);
+    };
+  }, [currentJobId]);
+
+  // OCR 이후 doc_id가 생기면 원문/요약본을 로드해 화면에 표시
+  useEffect(() => {
+    if (currentJobId === null) return;
+
+    const textReady = jobs.filter(
+      (j) =>
+        j.job_id === currentJobId &&
+        !!j.doc_id &&
+        j.job_status !== "failed" &&
+        j.job_status !== "cancelled" &&
+        (!extractedTexts[j.job_id] || !summaryTexts[j.job_id]),
     );
-    completed.forEach((j) => {
+
+    textReady.forEach((j) => {
       getDocumentDetail(j.doc_id!)
-        .then((doc) =>
-          setSummaries((prev) => ({ ...prev, [j.job_id]: doc.summary ?? "" })),
-        )
+        .then((doc) => {
+          setExtractedTexts((prev) => ({ ...prev, [j.job_id]: doc.content ?? "" }));
+          setSummaryTexts((prev) => ({ ...prev, [j.job_id]: doc.summary ?? "" }));
+        })
         .catch(() => { });
     });
-  }, [jobs]);
+  }, [jobs, extractedTexts, summaryTexts, currentJobId]);
 
   const handleUpload = useCallback(async (file: File) => {
-    if (!file.type.includes("pdf") && !file.name.endsWith(".pdf")) {
-      toast.error("PDF 파일만 업로드할 수 있습니다.");
+    const lowerName = file.name.toLowerCase();
+    const allowedExt = [".pdf", ".docx", ".hwp"];
+    const hasAllowedExt = allowedExt.some((ext) => lowerName.endsWith(ext));
+
+    if (!hasAllowedExt) {
+      toast.error("PDF, DOCX, HWP 파일만 업로드할 수 있습니다.");
       return;
     }
     setUploading(true);
     try {
+      // 새 업로드를 시작하면 이전 화면 결과는 비우고 현재 파일 기준으로 다시 시작
+      setJobs([]);
+      setCurrentJobId(null);
+      setExtractedTexts({});
+      setSummaryTexts({});
+      setSelectedDocContent("");
+      setSelectedDocSummary("");
+
       const job = await uploadDocument(file);
-      setJobs((prev) => [job, ...prev]);
+      setCurrentJobId(job.job_id);
+      setJobs([job]);
       toast.success(`'${file.name}' 업로드 완료 — 처리 중입니다.`);
     } catch {
       toast.error("업로드 중 오류가 발생했습니다.");
@@ -158,11 +259,38 @@ export default function DocumentSummary() {
   };
 
   const activeJobs = jobs.filter(isActive);
-  const doneJobs = jobs.filter((j) => j.job_status === "completed");
-  const failedJobs = jobs.filter(
-    (j) => j.job_status === "failed" || j.job_status === "cancelled",
+  const currentActiveJob = activeJobs.find((j) => j.job_id === currentJobId);
+  const currentExtractedJob = jobs.find(
+    (j) =>
+      j.job_id === currentJobId &&
+      !!j.doc_id &&
+      j.job_status !== "failed" &&
+      j.job_status !== "cancelled" &&
+      !!extractedTexts[j.job_id]?.trim(),
+  );
+  const currentSummaryJob = jobs.find(
+    (j) =>
+      j.job_id === currentJobId &&
+      !!j.doc_id &&
+      j.job_status !== "failed" &&
+      j.job_status !== "cancelled" &&
+      !!summaryTexts[j.job_id]?.trim(),
   );
 
+  const displayOriginalText = selectedDocId
+    ? selectedDocContent
+    : currentExtractedJob
+      ? extractedTexts[currentExtractedJob.job_id] ?? ""
+      : "";
+
+  const displaySummaryText = selectedDocId
+    ? selectedDocSummary
+    : currentSummaryJob
+      ? summaryTexts[currentSummaryJob.job_id] ?? ""
+      : "";
+
+  const hasOriginalText = !!displayOriginalText.trim();
+  const hasSummaryText = !!displaySummaryText.trim();
   return (
     <MainLayout>
       <div className="min-h-screen bg-background">
@@ -212,7 +340,7 @@ export default function DocumentSummary() {
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".pdf"
+                  accept=".pdf,.docx,.hwp"
                   className="hidden"
                   onChange={handleFileChange}
                 />
@@ -221,13 +349,13 @@ export default function DocumentSummary() {
           </Card>
 
           {/* ── 처리 중 ── */}
-          {activeJobs.length > 0 && (
+          {currentActiveJob && (
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">처리 중</CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                {activeJobs.map((job) => {
+                {[currentActiveJob].map((job) => {
                   const stage = job.pipeline_stage ?? "uploaded";
                   const progress = STAGE_PROGRESS[stage] ?? 0;
                   const filename = filenameFromPath(job.file_path);
@@ -265,92 +393,40 @@ export default function DocumentSummary() {
             </Card>
           )}
 
-          {/* ── 완료 ── */}
-          {doneJobs.length > 0 && (
+          {/* ── 추출 텍스트 ── */}
+          {hasOriginalText && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">완료</CardTitle>
+                <CardTitle className="text-base">원문</CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                {doneJobs.map((job) => {
-                  const filename = filenameFromPath(job.file_path);
-                  const summary = job.doc_id ? summaries[job.job_id] : "";
-                  return (
-                    <div key={job.job_id} className="flex items-start gap-3">
-                      <FileText className="size-10 text-muted-foreground shrink-0 mt-1" />
-                      <div className="flex-1 min-w-0 space-y-3">
-                        <div className="flex items-center gap-2">
-                          <p className="font-medium text-foreground truncate">{filename}</p>
-                          <Badge className="bg-[var(--status-approved)] text-white border-transparent shrink-0">
-                            <CheckCircle2 className="size-3 mr-1" />
-                            요약 완료
-                          </Badge>
-                        </div>
-
-                        {summary && (
-                          <div className="bg-muted/50 border border-border rounded-lg p-4">
-                            <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed max-h-40 overflow-y-auto">
-                              {summary}
-                            </p>
-                          </div>
-                        )}
-
-                        {job.doc_id && (
-                          <div className="flex gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => navigate(`/document/${job.doc_id}`)}
-                            >
-                              전문 보기
-                            </Button>
-                            <Button
-                              size="sm"
-                              onClick={() =>
-                                navigate("/draft/new", {
-                                  state: {
-                                    sourceDocId: job.doc_id,
-                                    sourceDocName: filename,
-                                    sourceSummary: summary,
-                                  },
-                                })
-                              }
-                            >
-                              📄 이 요약으로 기안 작성
-                            </Button>
-                          </div>
-                        )}
-                      </div>
+                <div className="space-y-3">
+                  <div className="bg-muted/50 border border-border rounded-lg p-5 min-h-[420px] max-h-[72vh] overflow-y-auto">
+                    <div className="prose max-w-none text-foreground text-base leading-7">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {displayOriginalText}
+                      </ReactMarkdown>
                     </div>
-                  );
-                })}
+                  </div>
+                </div>
               </CardContent>
             </Card>
           )}
 
-          {/* ── 실패 / 취소 ── */}
-          {failedJobs.length > 0 && (
+          {/* ── 요약본 ── */}
+          {hasSummaryText && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-base text-destructive">실패 / 취소</CardTitle>
+                <CardTitle className="text-base">요약본</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                {failedJobs.map((job) => {
-                  const filename = filenameFromPath(job.file_path);
-                  return (
-                    <div key={job.job_id} className="flex items-start gap-3">
-                      <AlertCircle className="size-5 text-destructive shrink-0 mt-0.5" />
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-foreground truncate">{filename}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {job.job_status === "cancelled"
-                            ? "취소됨"
-                            : job.error_message ?? "처리 중 오류가 발생했습니다."}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
+              <CardContent>
+                <div className="bg-muted/50 border border-border rounded-lg p-5 max-h-[56vh] overflow-y-auto">
+                  <div className="prose max-w-none text-foreground text-base leading-7">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {displaySummaryText}
+                    </ReactMarkdown>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           )}
@@ -359,6 +435,12 @@ export default function DocumentSummary() {
           {jobs.length === 0 && (
             <p className="text-center text-sm text-muted-foreground py-4">
               업로드된 문서가 없습니다.
+            </p>
+          )}
+
+          {jobs.length > 0 && currentJobId === null && (
+            <p className="text-center text-sm text-muted-foreground py-4">
+              파일을 업로드하면 해당 파일의 원문과 요약본을 표시합니다.
             </p>
           )}
         </main>
