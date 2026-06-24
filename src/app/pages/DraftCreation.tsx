@@ -10,7 +10,7 @@ import toast, { Toaster } from "react-hot-toast";
 import { ArrowLeft, X, FileText, ChevronDown, ChevronUp } from "lucide-react";
 import { createDraft, updateDraft, getDraftDetail } from "../api/draft";
 import { getDocumentDetail } from "../api/document";
-import { getUsersAPI, type UserListItem } from "../api/auth";
+import { API_BASE_URL } from "../../lib/api";
 
 export default function DraftCreation() {
   const navigate = useNavigate();
@@ -34,7 +34,7 @@ export default function DraftCreation() {
 
   // 결재권자
   const [approverId, setApproverId] = useState<number | null>(null);
-  const [approverList, setApproverList] = useState<UserListItem[]>([]);
+  const [approverList, setApproverList] = useState<{ id: number; name: string }[]>([]);
 
   // 임시저장 후 draft_id 추적 (URL param과 별도로 관리해 재조회 루프 방지)
   const currentDraftId = useRef<number | null>(id ? Number(id) : null);
@@ -42,18 +42,11 @@ export default function DraftCreation() {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // 결재권자 목록 로드 (결재권자 역할 + 본인 제외)
+  // 결재권자 목록 로드
   useEffect(() => {
-    const raw = sessionStorage.getItem("user_session");
-    const currentUserId: number | undefined = raw ? JSON.parse(raw)?.id : undefined;
-    getUsersAPI()
-      .then((users) =>
-        setApproverList(
-          users.filter(
-            (u) => u.roles.includes("결재권자") && u.id !== currentUserId
-          )
-        )
-      )
+    fetch(`${API_BASE_URL}/auth/approvers`, { credentials: "include" })
+      .then((r) => r.json())
+      .then(setApproverList)
       .catch(() => { /* 무시 */ });
   }, []);
 
@@ -89,6 +82,10 @@ export default function DraftCreation() {
     }
     if (!content.trim()) {
       toast.error("본문을 입력해주세요.");
+      return;
+    }
+    if (!approverId) {
+      toast.error("결재권자를 선택해주세요.");
       return;
     }
 
