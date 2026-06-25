@@ -16,7 +16,7 @@ import { getDocumentList, deletedDocument } from "../api/document";
 import type { DocItem } from "../types/document";
 import { getDraftList, formatDate, mapStatusLabel } from "../api/draft";
 import type { DraftListItem } from "../types/draft";
-import { useNotifications } from "../hooks/useNotifications";
+import { useNotificationContext } from "../context/NotificationContext";
 
 interface StaffDashboardProps {
   userRole?: string;
@@ -30,8 +30,7 @@ export default function StaffDashboard({ userRole, showApproverMenu, showAdminMe
   const [sortOrder, setSortOrder] = useState("latest");
   const [drafts, setDrafts] = useState<DraftListItem[]>([]);
 
-  // 알림 훅 (SSE 실시간 + API 초기 로드)
-  const { notifications, markRead, latest } = useNotifications();
+  const { notifications, markRead, latest } = useNotificationContext();
 
   const [documents, setDocuments] = useState<DocItem[]>([]);
   const [category, setCategory] = useState("전체"); // 이미지의 '가이드라인' 등
