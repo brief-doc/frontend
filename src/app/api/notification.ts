@@ -37,6 +37,7 @@ export function linkToRoute(link: string | null): string | null {
   const domain = link.slice(0, colonIdx);
   const id = link.slice(colonIdx + 1);
   if (domain === "APPROVAL") return `/draft/view/${id}`;
+  if (domain === "APPROVAL_REQ") return `/approver/dashboard`;
   if (domain === "SUMMARY") return `/document/${id}`;
   return null;
 }
