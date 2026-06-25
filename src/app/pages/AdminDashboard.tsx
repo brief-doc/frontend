@@ -223,147 +223,27 @@ export default function AdminDashboard() {
                   업로드된 문서가 없습니다.
                 </div>
               ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={categoryData}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                    outerRadius={100}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                    {categoryData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={categoryData}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      outerRadius={100}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {categoryData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
               )}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-4">
-            <CardTitle>사용자 목록</CardTitle>
-            <Button onClick={() => navigate("/admin/users/create")}>
-              <Users className="size-4" />
-              유저 생성
-            </Button>
-          </CardHeader>
-          <CardContent>
-            <div className="border border-border rounded-lg overflow-hidden">
-              <table className="w-full">
-                <thead className="bg-muted/50 border-b border-border">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-foreground">이름</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-foreground">이메일</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-foreground">권한</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-foreground">상태</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-foreground">가입일</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-foreground">최종 수정일</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-foreground">마지막 로그인</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-foreground">작업</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.map((user) => {
-                    const roles = user.roles;
-                    const joinDate = user.user_create
-                      ? new Date(user.user_create).toLocaleDateString("ko-KR")
-                      : "생성 기록 없음";
-                    const upDate = user.user_update
-                      ? new Date(user.user_update).toLocaleDateString("ko-KR")
-                      : "수정 기록 없음";
-                    const lastActive = user.user_login
-                      ? new Date(user.user_login).toLocaleString("ko-KR")
-                      : "접속 기록 없음";
-
-                    return (
-                      <tr
-                        key={user.id}
-                        className={`border-b border-border hover:bg-muted/30 cursor-pointer transition-colors ${user.is_deleted ? "opacity-60 bg-muted/20" : ""
-                          }`}
-                      >
-                        <td className="px-4 py-3 text-sm font-medium text-foreground">{user.name}</td>
-                        <td className="px-4 py-3 text-sm text-muted-foreground">{user.email}</td>
-                        <td className="px-4 py-3">
-                          <div className="flex flex-col gap-1.5 items-start">
-                            {roles.map((role, idx) => (
-                              <Badge key={idx} className={roleColors[role]}>{role}</Badge>
-                            ))}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          {user.is_deleted ? (
-                            <Badge variant="outline" className="text-destructive border-destructive">비활성</Badge>
-                          ) : (
-                            <Badge variant="outline" className="text-[var(--status-approved)] border-[var(--status-approved)]">활성</Badge>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-muted-foreground">{joinDate}</td>
-                        <td className="px-4 py-3 text-sm text-muted-foreground">{upDate}</td>
-                        <td className="px-4 py-3 text-sm text-muted-foreground">{lastActive}</td>
-                        <td className="px-4 py-3 text-sm text-muted-foreground">
-                          <div className="flex flex-col gap-2 w-32">
-                            {/* 1. New Dedicated Activity Redirect Button */}
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="border-primary text-primary hover:bg-primary/10"
-                              disabled={user.is_deleted} // Optional: Disable activity view if user is deleted
-                              onClick={() => navigate(`/admin/users/${user.id}/activity`)}
-                            >
-                              유저 활동
-                            </Button>
-                            {/* Activation/Deactivation Toggle Button */}
-                            <Button
-                              size="sm"
-                              variant={user.is_deleted ? "default" : "destructive"}
-                              disabled={pendingActionId === user.id}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleToggleActivation(user.id, user.is_deleted);
-                              }}
-                            >
-                              {user.is_deleted ? <Power className="size-3 mr-1" /> : <PowerOff className="size-3 mr-1" />}
-                              {user.is_deleted ? "활성화" : "비활성화"}
-                            </Button>
-
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              disabled={pendingActionId === user.id || user.is_deleted}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleResetPassword(user.id);
-                              }}
-                            >
-                              암호 리셋
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              disabled={pendingActionId === user.id || user.is_deleted}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleForceLogout(user.id);
-                              }}
-                            >
-                              로그아웃
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
             </div>
           </CardContent>
         </Card>

@@ -21,8 +21,6 @@ export default function Login() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage("");
-
-    sessionStorage.removeItem("user_session");
     setIsLoading(true);
 
     try {
@@ -49,52 +47,22 @@ export default function Login() {
         return;
       }
 
-      if (data.name && data.email) {
-        sessionStorage.setItem(
-          "user_session",
-          JSON.stringify({
-            name: data.name,
-            email: data.email,
-            id: data.id,
-            roles: data.roles ?? [],
-          })
-        );
+      const meData = await getMeAPI();
+
+      if (meData?.authenticated) {
+        sessionStorage.setItem("user_session", JSON.stringify({
+          name: meData.name,
+          email: meData.email,
+          id: meData.id,
+          roles: meData.roles ?? [],
+        }));
+        const roles: string[] = meData.roles ?? [];
+        if (roles.includes("관리자")) navigate("/admin/dashboard");
+        else if (roles.includes("결재권자")) navigate("/staff/dashboard/approver");
+        else if (roles.includes("실무 담당자")) navigate("/staff/dashboard");
+        else navigate("/rag-search");
       } else {
-        const meResponse = await fetch(`${API_BASE_URL}/auth/me`, {
-          credentials: "include",
-        });
-        const meData = await meResponse.json().catch(() => ({}));
-        if (meResponse.ok && meData.authenticated) {
-          sessionStorage.setItem(
-            "user_session",
-            JSON.stringify({
-              name: meData.name,
-              email: meData.email,
-              id: meData.id,
-              roles: meData.roles ?? [],
-            })
-          );
-        } else {
-          sessionStorage.removeItem("user_session");
-        }
-      }
-
-      // Retrieve the raw string data
-      const rawData = sessionStorage.getItem('user_session');
-
-      // Parse it back into an object if it was JSON
-      const sessionData = rawData ? JSON.parse(rawData) : null;
-
-      const roles: string[] = sessionData?.roles ?? [];
-
-      if (roles.includes("관리자")) {
-        navigate("/admin/dashboard");
-      } else if (roles.includes("결재권자")) {
-        navigate("/staff/dashboard/approver");
-      } else if (roles.includes("실무 담당자")) {
-        navigate("/staff/dashboard");
-      } else {
-        navigate("/rag-search");
+        setErrorMessage("로그인 후 세션을 확인할 수 없습니다.");
       }
     } catch (error) {
       console.error("login error:", error);

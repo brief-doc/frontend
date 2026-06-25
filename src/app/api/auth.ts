@@ -87,6 +87,7 @@ export async function loginAPI(data: LoginRequest): Promise<void> {
 }
 
 export async function logoutAPI(): Promise<void> {
+    sessionStorage.clear();
     await fetch(`${API_BASE_URL}/auth/logout`, {
         method: "POST",
         credentials: "include", // 쿠키 전송을 위해 필수

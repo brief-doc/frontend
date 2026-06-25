@@ -8,6 +8,7 @@ import toast, { Toaster } from "react-hot-toast";
 import { Button } from "./ui/button";
 import { NotificationDropdown } from "./NotificationDropdown";
 import { useNotifications } from "../hooks/useNotifications";
+import { logoutAPI } from '../api/auth';
 
 export function MainLayout({ children, currentUser }: { children: React.ReactNode; currentUser?: any }) {
   const navigate = useNavigate();
@@ -27,10 +28,20 @@ export function MainLayout({ children, currentUser }: { children: React.ReactNod
   const { notifications, markRead } = useNotifications();
   const unreadCount = notifications.filter((n) => n.unread).length;
 
-  const handleLogout = () => {
-    sessionStorage.clear();
-    toast.success("로그아웃 되었습니다.");
-    navigate("/", { replace: true });
+  const handleLogout = async () => {
+    try {
+      sessionStorage.clear();
+      localStorage.clear();
+
+      await logoutAPI();
+      toast.success("로그아웃 되었습니다.");
+    } catch (error) {
+      console.error("Logout failed:", error);
+    } finally {
+      // 3. Always redirect
+      navigate("/", { replace: true });
+      window.location.reload();
+    }
   };
 
   // 사이드바 메뉴 바인딩
