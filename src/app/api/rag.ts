@@ -1,6 +1,7 @@
 import api, { API_BASE_URL } from "../../lib/api";
 
 export interface RagReference {
+  doc_id?: number | null;
   doc_name: string;
   category: string;
   page: string;

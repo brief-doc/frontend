@@ -151,7 +151,7 @@ export function MainLayout({ children, currentUser }: { children: React.ReactNod
         </header>
 
         {/* 3. 본문 구역 */}
-        <main className="flex-1 p-8 bg-background">
+        <main className="flex-1 bg-background">
           {children}
         </main>
       </div>
