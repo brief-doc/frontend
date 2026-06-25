@@ -9,7 +9,8 @@ import DraftView from "../pages/DraftView";
 import DraftList from "../pages/DraftList";
 import DocumentDetail from "../pages/DocumentDetail";
 import AdminDashboard from "../pages/AdminDashboard";
-import AdminUserPage from "../pages/AdminUserPage"
+import AdminUserPage from "../pages/AdminUserPage";
+import AdminDocuments from "../pages/AdminDocuments";
 import UserCreate from "../pages/UserCreate";
 import UserActivity from "../pages/UserActivity";
 import MyPage from "../pages/MyPage";
@@ -122,11 +123,7 @@ export const router = createBrowserRouter([
           },
           {
             path: "documents",
-            Component: AdminDashboard,
-          },
-          {
-            path: "queries",
-            Component: AdminDashboard,
+            Component: AdminDocuments,
           },
           {
             path: "activity",

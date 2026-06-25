@@ -71,10 +71,12 @@ export async function cancelDraft(draftId: number): Promise<void> {
 export async function getApprovalList(params?: {
   skip?: number;
   limit?: number;
+  status?: string | null;
 }): Promise<{ items: ApprovalListItem[]; total_count: number; page: number; limit: number }> {
   const query = new URLSearchParams();
   if (params?.skip != null) query.set("skip", String(params.skip));
   if (params?.limit != null) query.set("limit", String(params.limit));
+  if (params?.status != null) query.set("status", params.status);
   const res = await api.get(`/drafts/approvals/?${query}`);
   return res.data;
 }
