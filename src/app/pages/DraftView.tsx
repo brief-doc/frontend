@@ -8,10 +8,10 @@ import { Badge } from "../components/ui/badge";
 import ConfirmModal from "../components/ui/confirm-modal";
 import toast, { Toaster } from "react-hot-toast";
 import { ArrowLeft, FileText, ChevronDown, ChevronUp } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { getDraftDetail, cancelDraft, formatDate } from "../api/draft";
-import { getDocumentDetail } from "../api/document";
 import type { DraftDetail } from "../types/draft";
-import type { DocDetailItem } from "@/types/document";
 
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
   draft: { label: "임시저장", className: "bg-muted text-muted-foreground border-transparent" },
@@ -26,7 +26,6 @@ export default function DraftView() {
   const { id } = useParams<{ id: string }>();
 
   const [draft, setDraft] = useState<DraftDetail | null>(null);
-  const [sourceDoc, setSourceDoc] = useState<DocDetailItem | null>(null);
   const [summaryExpanded, setSummaryExpanded] = useState(true);
   const [loading, setLoading] = useState(true);
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
@@ -36,14 +35,7 @@ export default function DraftView() {
     if (!id) return;
     setLoading(true);
     getDraftDetail(Number(id))
-      .then((data) => {
-        setDraft(data);
-        if (data.source_doc_id) {
-          getDocumentDetail(data.source_doc_id)
-            .then(setSourceDoc)
-            .catch(() => { });
-        }
-      })
+      .then(setDraft)
       .catch(() => toast.error("기안 정보를 불러오지 못했습니다."))
       .finally(() => setLoading(false));
   }, [id]);
@@ -109,7 +101,7 @@ export default function DraftView() {
 
         <main className="container mx-auto px-6 py-8 max-w-4xl space-y-4">
           {/* 첨부 근거 문서 카드 */}
-          {sourceDoc && (
+          {(draft.source_doc_id || draft.source_doc_name || draft.source_doc_summary) && (
             <Card className="bg-muted/30">
               <CardContent className="pt-4 pb-4">
                 <div className="flex items-center justify-between mb-2">
@@ -117,10 +109,10 @@ export default function DraftView() {
                     <span className="text-muted-foreground">📎 근거:</span>
                     <div className="flex items-center gap-1.5 text-foreground">
                       <FileText className="size-4" />
-                      <span className="font-medium">{sourceDoc.title}</span>
+                      <span className="font-medium">{draft.source_doc_name ?? `문서 #${draft.source_doc_id ?? "-"}`}</span>
                     </div>
                   </div>
-                  {sourceDoc.summary && (
+                  {draft.source_doc_summary && (
                     <Button
                       variant="ghost"
                       size="icon"
@@ -134,11 +126,11 @@ export default function DraftView() {
                   )}
                 </div>
 
-                {summaryExpanded && sourceDoc.summary && (
+                {summaryExpanded && draft.source_doc_summary && (
                   <div className="mt-2 border-t border-border pt-3">
                     <p className="text-xs font-medium text-muted-foreground mb-1">요약 내용</p>
                     <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto">
-                      {sourceDoc.summary}
+                      {draft.source_doc_summary}
                     </p>
                   </div>
                 )}
@@ -161,9 +153,11 @@ export default function DraftView() {
               <div>
                 <h3 className="text-sm font-medium text-foreground mb-3">상신 내용</h3>
                 <div className="prose prose-sm max-w-none">
-                  <p className="text-foreground whitespace-pre-wrap leading-relaxed">
-                    {draft.content}
-                  </p>
+                  <div className="text-foreground leading-relaxed whitespace-pre-wrap">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {draft.content}
+                    </ReactMarkdown>
+                  </div>
                 </div>
               </div>
 

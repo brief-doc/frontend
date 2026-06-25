@@ -5,6 +5,8 @@ import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "../components/ui/sheet";
 import { ArrowLeft, Send, Sparkles, Loader2 } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { useNotifications } from "../hooks/useNotifications";
 import { streamQuery, type RagReference } from "../api/rag";
 
@@ -279,15 +281,19 @@ export default function RagSearch() {
                   </SheetTitle>
                 </SheetHeader>
 
-                <div className="mt-6 space-y-4">
+                <div className="mt-6 px-4 space-y-4">
                   {selectedRef.category && (
                     <Badge variant="outline" className="text-muted-foreground">
                       {selectedRef.category}
                     </Badge>
                   )}
 
-                  <div className="text-sm leading-relaxed text-foreground bg-muted/40 border border-border rounded-lg p-4 whitespace-pre-wrap">
-                    {selectedRef.snippet}
+                  <div className="bg-muted/40 border border-border rounded-lg p-4">
+                    <div className="prose prose-sm max-w-none text-foreground leading-relaxed whitespace-pre-wrap">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {selectedRef.snippet}
+                      </ReactMarkdown>
+                    </div>
                   </div>
 
                   <div className="flex gap-3 pt-4 border-t border-border">
@@ -296,6 +302,8 @@ export default function RagSearch() {
                       onClick={() =>
                         navigate("/draft/new", {
                           state: {
+                            fromRag: true,
+                            sourceDocId: selectedRef.doc_id ?? null,
                             sourceDocName: selectedRef.doc_name,
                             sourceSummary: selectedRef.snippet,
                           },

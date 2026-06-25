@@ -71,6 +71,14 @@ export default function StaffDashboard({ userRole, showApproverMenu, showAdminMe
     fetchDocuments();
   }, [fetchDocuments]);
 
+  // 문서 파이프라인 진행 중에는 목록을 주기적으로 새로고침해 내 문서함 반영 지연을 줄인다.
+  useEffect(() => {
+    const id = setInterval(() => {
+      fetchDocuments();
+    }, 10000);
+    return () => clearInterval(id);
+  }, [fetchDocuments]);
+
   // 카테고리나 검색어가 바뀌면 페이지를 '1'로 리셋
   const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setCategory(e.target.value);
@@ -115,6 +123,13 @@ export default function StaffDashboard({ userRole, showApproverMenu, showAdminMe
       fetchDrafts();
     }
   }, [latest]);
+
+  // 요약 완료/문서 관련 알림 수신 시 문서 목록 즉시 갱신
+  useEffect(() => {
+    if (latest?.link?.startsWith("/document/")) {
+      fetchDocuments();
+    }
+  }, [latest, fetchDocuments]);
 
   // 💡 1. 모달의 열림 상태와 현재 선택된 문서 ID를 관리할 State 추가
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
