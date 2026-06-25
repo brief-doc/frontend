@@ -29,6 +29,9 @@ function formatDateTime(iso: string): string {
 export default function ApproverDashboard() {
   const navigate = useNavigate();
 
+  // 탭: "pending" | "history"
+  const [tab, setTab] = useState<"pending" | "history">("pending");
+
   // 목록 상태
   const [approvalList, setApprovalList] = useState<ApprovalListItem[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -51,7 +54,8 @@ export default function ApproverDashboard() {
     setLoadingList(true);
     try {
       const skip = (page - 1) * LIMIT;
-      const res = await getApprovalList({ skip, limit: LIMIT });
+      const status = tab === "pending" ? "pending" : null;
+      const res = await getApprovalList({ skip, limit: LIMIT, status });
       setApprovalList(res.items);
       setTotalCount(res.total_count);
       if (selectedId && !res.items.find((i) => i.draft_id === selectedId)) {
@@ -63,11 +67,17 @@ export default function ApproverDashboard() {
     } finally {
       setLoadingList(false);
     }
-  }, [page, selectedId]);
+  }, [page, selectedId, tab]);
+
+  useEffect(() => {
+    setPage(1);
+    setSelectedId(null);
+    setDetail(null);
+  }, [tab]);
 
   useEffect(() => {
     fetchList();
-  }, [page]);
+  }, [page, tab]);
 
   useEffect(() => {
     const id = setInterval(fetchList, 15000);
@@ -132,13 +142,26 @@ export default function ApproverDashboard() {
     <MainLayout>
       <Toaster />
       <div className="grid p-8 grid-cols-5 gap-6">
-        {/* 결재 대기 목록 */}
+        {/* 결재 목록 */}
         <div className="col-span-2">
           <Card>
             <CardHeader className="pb-4">
               <div className="flex items-center justify-between">
-                <CardTitle>결재 대기</CardTitle>
-                <Badge className="bg-[var(--status-pending)] text-white border-transparent">
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => setTab("pending")}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${tab === "pending" ? "bg-primary text-white" : "text-muted-foreground hover:bg-muted"}`}
+                  >
+                    결재 대기
+                  </button>
+                  <button
+                    onClick={() => setTab("history")}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${tab === "history" ? "bg-primary text-white" : "text-muted-foreground hover:bg-muted"}`}
+                  >
+                    결재 이력
+                  </button>
+                </div>
+                <Badge className={tab === "pending" ? "bg-[var(--status-pending)] text-white border-transparent" : "bg-muted text-muted-foreground border-transparent"}>
                   {totalCount}건
                 </Badge>
               </div>
@@ -166,7 +189,7 @@ export default function ApproverDashboard() {
                           {draft.author_name} · {formatDateTime(draft.created_at)}
                         </p>
                       </div>
-                      <StatusBadge status="pending" />
+                      <StatusBadge status={draft.status as any} />
                     </div>
                   ))}
                 </div>
@@ -228,33 +251,36 @@ export default function ApproverDashboard() {
                     </div>
                   </div>
 
-                  {showRejectForm && (
-                    <div className="space-y-2">
-                      <Label htmlFor="reject-reason">반려 사유</Label>
-                      <Textarea
-                        id="reject-reason"
-                        value={rejectReason}
-                        onChange={(e) => setRejectReason(e.target.value)}
-                        placeholder="반려 사유를 입력하세요"
-                        className="min-h-[120px]"
-                      />
-                    </div>
+                  {tab === "pending" && (
+                    <>
+                      {showRejectForm && (
+                        <div className="space-y-2">
+                          <Label htmlFor="reject-reason">반려 사유</Label>
+                          <Textarea
+                            id="reject-reason"
+                            value={rejectReason}
+                            onChange={(e) => setRejectReason(e.target.value)}
+                            placeholder="반려 사유를 입력하세요"
+                            className="min-h-[120px]"
+                          />
+                        </div>
+                      )}
+                      <div className="flex justify-end gap-2">
+                        {!showRejectForm ? (
+                          <>
+                            <Button variant="outline" onClick={() => setShowRejectForm(true)} disabled={deciding}>반려</Button>
+                            <Button onClick={() => setShowApproveModal(true)} disabled={deciding}>승인</Button>
+                          </>
+                        ) : (
+                          <>
+                            <Button variant="outline" onClick={() => { setShowRejectForm(false); setRejectReason(""); }} disabled={deciding}>취소</Button>
+                            <Button variant="destructive" onClick={handleRejectConfirm} disabled={deciding}>반려 확정</Button>
+                          </>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground text-center">결정 결과는 기안자에게 알림으로 전송됩니다</p>
+                    </>
                   )}
-
-                  <div className="flex justify-end gap-2">
-                    {!showRejectForm ? (
-                      <>
-                        <Button variant="outline" onClick={() => setShowRejectForm(true)} disabled={deciding}>반려</Button>
-                        <Button onClick={() => setShowApproveModal(true)} disabled={deciding}>승인</Button>
-                      </>
-                    ) : (
-                      <>
-                        <Button variant="outline" onClick={() => { setShowRejectForm(false); setRejectReason(""); }} disabled={deciding}>취소</Button>
-                        <Button variant="destructive" onClick={handleRejectConfirm} disabled={deciding}>반려 확정</Button>
-                      </>
-                    )}
-                  </div>
-                  <p className="text-xs text-muted-foreground text-center">결정 결과는 기안자에게 알림으로 전송됩니다</p>
                 </CardContent>
               </>
             ) : null}
