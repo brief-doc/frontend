@@ -2,7 +2,7 @@ import React from "react";
 import { useNavigate, useLocation } from "react-router";
 import {
   Home, ClipboardList, LayoutDashboard, Users,
-  FileText, MessageSquare, LogOut, Bell
+  FileText, LogOut, Bell
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import { Button } from "./ui/button";
@@ -56,8 +56,7 @@ export function MainLayout({ children, currentUser }: { children: React.ReactNod
     menuItems.push(
       { icon: LayoutDashboard, label: "관리자 대시보드", path: "/admin/dashboard" },
       { icon: Users, label: "유저 관리", path: "/admin/users" },
-      { icon: FileText, label: "문서 관리", path: "/admin/documents" },
-      { icon: MessageSquare, label: "질의 이력", path: "/admin/queries" }
+      { icon: FileText, label: "문서 관리", path: "/admin/documents" }
     );
   }
 
@@ -151,7 +150,7 @@ export function MainLayout({ children, currentUser }: { children: React.ReactNod
         </header>
 
         {/* 3. 본문 구역 */}
-        <main className="flex-1 bg-background">
+        <main className="flex-1 p-4 bg-background">
           {children}
         </main>
       </div>
