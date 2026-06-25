@@ -15,6 +15,7 @@ import type { DocItem } from "../types/document";
 interface RagQueryItem {
   id: number;
   query: string;
+  answer: string | null;
   timestamp: string;
 }
 
@@ -60,6 +61,7 @@ export default function MyPage() {
 
   const [joinDate, setJoinDate] = useState<string>("...");
   const [ragQueries, setRagQueries] = useState<RagQueryItem[]>([]);
+  const [expandedQueryId, setExpandedQueryId] = useState<number | null>(null);
   const [drafts, setDrafts] = useState<DraftItem[]>([]);
   const [documents, setDocuments] = useState<DocItem[]>([]);
 
@@ -83,6 +85,7 @@ export default function MyPage() {
         (data.rag_queries ?? []).map((q: any) => ({
           id: q.query_id,
           query: q.query_text,
+          answer: q.answer_text ?? null,
           timestamp: formatDate(q.created_at),
         }))
       );
@@ -198,12 +201,36 @@ export default function MyPage() {
                 {ragQueries.length === 0 ? (
                   <p className="text-sm text-muted-foreground py-4 text-center">질의 이력이 없습니다.</p>
                 ) : (
-                  ragQueries.map((q) => (
-                    <div key={q.id} className="p-4 border border-border rounded-lg hover:bg-muted/30 transition-colors">
-                      <p className="text-sm font-medium text-foreground mb-1">{q.query}</p>
-                      <span className="text-xs text-muted-foreground">{q.timestamp}</span>
-                    </div>
-                  ))
+                  ragQueries.map((q) => {
+                    const expanded = expandedQueryId === q.id;
+                    return (
+                      <div
+                        key={q.id}
+                        className="border border-border rounded-lg overflow-hidden"
+                      >
+                        <div
+                          className="p-4 hover:bg-muted/30 transition-colors cursor-pointer flex items-start justify-between gap-2"
+                          onClick={() => setExpandedQueryId(expanded ? null : q.id)}
+                        >
+                          <div>
+                            <p className="text-sm font-medium text-foreground mb-1">{q.query}</p>
+                            <span className="text-xs text-muted-foreground">{q.timestamp}</span>
+                          </div>
+                          <span className="text-xs text-muted-foreground mt-0.5 shrink-0">
+                            {expanded ? "▲" : "▼"}
+                          </span>
+                        </div>
+                        {expanded && (
+                          <div className="px-4 pb-4 pt-0 border-t border-border bg-muted/20">
+                            <p className="text-xs font-medium text-muted-foreground mb-2 mt-3">답변</p>
+                            <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
+                              {q.answer ?? "저장된 답변이 없습니다."}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
                 )}
               </CardContent>
             </Card>
@@ -232,7 +259,7 @@ export default function MyPage() {
                         </tr>
                       ) : (
                         documents.map((doc) => (
-                          <tr key={doc.id} className="border-b border-border hover:bg-muted/20 transition-colors text-sm">
+                          <tr key={doc.id} className="border-b border-border hover:bg-muted/20 transition-colors text-sm cursor-pointer" onClick={() => navigate(`/document/${doc.id}`)}>
                             <td className="px-4 py-3 font-medium text-foreground">{doc.title}</td>
                             <td className="px-4 py-3">
                               <Badge variant="secondary" className="text-xs font-normal">{doc.category}</Badge>
@@ -273,7 +300,7 @@ export default function MyPage() {
                         </tr>
                       ) : (
                         drafts.map((draft) => (
-                          <tr key={draft.id} className="border-b border-border hover:bg-muted/20 transition-colors text-sm">
+                          <tr key={draft.id} className="border-b border-border hover:bg-muted/20 transition-colors text-sm cursor-pointer" onClick={() => navigate(`/draft/view/${draft.id}`)}>
                             <td className="px-4 py-3 font-medium text-foreground">{draft.title}</td>
                             <td className="px-4 py-3 text-muted-foreground">{draft.date}</td>
                             <td className="px-4 py-3">
