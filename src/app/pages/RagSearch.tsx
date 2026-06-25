@@ -288,7 +288,7 @@ export default function RagSearch() {
                     </Badge>
                   )}
 
-                  <div className="bg-muted/40 border border-border rounded-lg p-4">
+                  <div className="bg-muted/40 border border-border rounded-lg">
                     <div className="prose prose-sm max-w-none text-foreground leading-relaxed whitespace-pre-wrap">
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>
                         {selectedRef.snippet}
