@@ -15,7 +15,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "../components/ui/tabs";
-import { ArrowLeft, User } from "lucide-react";
+import { ArrowLeft, User, ClipboardList } from "lucide-react";
 
 export default function UserActivity() {
   const navigate = useNavigate();
@@ -93,6 +93,21 @@ export default function UserActivity() {
       date: formatDate(d.created_at),
       status: d.status,
       statusLabel: STATUS_LABEL[d.status] ?? d.status,
+    }));
+
+  const TABLE_LABEL: Record<string, string> = {
+    draft: "기안",
+    doc: "문서",
+    user: "계정",
+  };
+
+  const histories: { id: number; table: string; tableLabel: string; text: string; time: string }[] =
+    (activityData?.histories ?? []).map((h: any) => ({
+      id: h.history_id,
+      table: h.change_table,
+      tableLabel: TABLE_LABEL[h.change_table] ?? h.change_table,
+      text: h.change_text,
+      time: formatDate(h.change_time),
     }));
 
   const statusColors: Record<string, string> = {
@@ -180,13 +195,40 @@ export default function UserActivity() {
       </Card>
 
       {/* 탭 인터페이스 */}
-      <Tabs defaultValue="rag" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 max-w-[400px]">
-          <TabsTrigger value="rag">문서 질의 이력 ({ragQueries.length})</TabsTrigger>
-          <TabsTrigger value="drafts">문서 초안 생성 ({drafts.length})</TabsTrigger>
+      <Tabs defaultValue="history" className="w-full">
+        <TabsList className="grid w-full grid-cols-3 max-w-[540px]">
+          <TabsTrigger value="history">활동 이력 ({histories.length})</TabsTrigger>
+          <TabsTrigger value="rag">문서 질의 ({ragQueries.length})</TabsTrigger>
+          <TabsTrigger value="drafts">기안 ({drafts.length})</TabsTrigger>
         </TabsList>
 
-        {/* 탭 콘텐츠 1: RAG 질의 이력 */}
+        {/* 탭 콘텐츠: 활동 이력 */}
+        <TabsContent value="history" className="mt-4">
+          {histories.length === 0 ? (
+            <p className="text-center text-sm text-muted-foreground py-10">활동 이력이 없습니다.</p>
+          ) : (
+            <div className="relative border-l-2 border-border ml-3 space-y-0">
+              {histories.map((item) => (
+                <div key={item.id} className="relative pl-6 pb-5">
+                  <span className="absolute -left-[9px] top-1.5 w-4 h-4 rounded-full bg-primary/20 border-2 border-primary flex items-center justify-center">
+                    <ClipboardList className="w-2 h-2 text-primary" />
+                  </span>
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <span className="inline-block text-xs font-medium px-1.5 py-0.5 rounded bg-muted text-muted-foreground mr-2">
+                        {item.tableLabel}
+                      </span>
+                      <span className="text-sm text-foreground">{item.text}</span>
+                    </div>
+                    <span className="text-xs text-muted-foreground whitespace-nowrap shrink-0">{item.time}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* 탭 콘텐츠: RAG 질의 이력 */}
         <TabsContent value="rag" className="mt-4 space-y-4">
           {ragQueries.map((item: any) => (
             <Card
