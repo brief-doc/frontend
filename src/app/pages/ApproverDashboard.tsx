@@ -10,6 +10,8 @@ import { Badge } from "../components/ui/badge";
 import { FileText, ChevronRight } from "lucide-react";
 import ConfirmModal from "../components/ui/confirm-modal";
 import toast, { Toaster } from "react-hot-toast";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { getApprovalList, getApprovalDetail, postDecision } from "../api/draft";
 import type { ApprovalListItem, ApprovalDetail } from "../types/draft";
 
@@ -129,7 +131,7 @@ export default function ApproverDashboard() {
   return (
     <MainLayout>
       <Toaster />
-      <div className="grid grid-cols-5 gap-6">
+      <div className="grid p-8 grid-cols-5 gap-6">
         {/* 결재 대기 목록 */}
         <div className="col-span-2">
           <Card>
@@ -196,7 +198,62 @@ export default function ApproverDashboard() {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                  {/* ... (생략: 상세 내용 및 액션 버튼은 이전과 동일) */}
+                  <div className="flex items-center justify-between">
+                    <StatusBadge status={detail.status} />
+                    <p className="text-xs text-muted-foreground">수정일: {formatDateTime(detail.updated_at)}</p>
+                  </div>
+
+                  {(detail.source_doc_id || detail.source_doc_name || detail.source_doc_summary) && (
+                    <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-2">
+                      <p className="text-xs text-muted-foreground">첨부 근거 문서</p>
+                      <p className="text-sm font-medium text-foreground">
+                        {detail.source_doc_name ?? `문서 #${detail.source_doc_id ?? "-"}`}
+                      </p>
+                      {detail.source_doc_summary && (
+                        <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed max-h-40 overflow-y-auto">
+                          {detail.source_doc_summary}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="space-y-2">
+                    <Label>기안 본문</Label>
+                    <div className="rounded-lg border border-border bg-background p-4 max-h-[360px] overflow-y-auto">
+                      <div className="prose prose-sm max-w-none text-foreground leading-relaxed whitespace-pre-wrap">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                          {detail.content}
+                        </ReactMarkdown>
+                      </div>
+                    </div>
+                  </div>
+
+                  {showRejectForm && (
+                    <div className="space-y-2">
+                      <Label htmlFor="reject-reason">반려 사유</Label>
+                      <Textarea
+                        id="reject-reason"
+                        value={rejectReason}
+                        onChange={(e) => setRejectReason(e.target.value)}
+                        placeholder="반려 사유를 입력하세요"
+                        className="min-h-[120px]"
+                      />
+                    </div>
+                  )}
+
+                  <div className="flex justify-end gap-2">
+                    {!showRejectForm ? (
+                      <>
+                        <Button variant="outline" onClick={() => setShowRejectForm(true)} disabled={deciding}>반려</Button>
+                        <Button onClick={() => setShowApproveModal(true)} disabled={deciding}>승인</Button>
+                      </>
+                    ) : (
+                      <>
+                        <Button variant="outline" onClick={() => { setShowRejectForm(false); setRejectReason(""); }} disabled={deciding}>취소</Button>
+                        <Button variant="destructive" onClick={handleRejectConfirm} disabled={deciding}>반려 확정</Button>
+                      </>
+                    )}
+                  </div>
                   <p className="text-xs text-muted-foreground text-center">결정 결과는 기안자에게 알림으로 전송됩니다</p>
                 </CardContent>
               </>

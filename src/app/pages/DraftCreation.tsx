@@ -8,6 +8,8 @@ import { Label } from "../components/ui/label";
 import { Card, CardContent } from "../components/ui/card";
 import toast, { Toaster } from "react-hot-toast";
 import { ArrowLeft, X, FileText, ChevronDown, ChevronUp } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { createDraft, updateDraft, getDraftDetail } from "../api/draft";
 import { getDocumentDetail } from "../api/document";
 import { API_BASE_URL } from "../../lib/api";
@@ -16,6 +18,7 @@ export default function DraftCreation() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
+  const fromRag = Boolean(location.state?.fromRag);
 
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
@@ -42,6 +45,11 @@ export default function DraftCreation() {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  const buildRagEvidenceBlock = (docName: string | null, summary: string | null) => {
+    if (!summary?.trim()) return null;
+    return `[RAG 근거]\n문서: ${docName ?? "미상"}\n\n${summary}`;
+  };
+
   // 결재권자 목록 로드
   useEffect(() => {
     fetch(`${API_BASE_URL}/auth/approvers`, { credentials: "include" })
@@ -60,20 +68,46 @@ export default function DraftCreation() {
         setContent(data.content);
         currentDraftId.current = data.draft_id;
         if (data.approver_id) setApproverId(data.approver_id);
+
+        // 상세 API에서 근거 정보를 직접 받으면 우선 사용
+        setSourceDocId(data.source_doc_id ?? null);
+        setSourceDocName(data.source_doc_name ?? null);
+        setSourceSummary(data.source_doc_summary ?? null);
+
         if (data.source_doc_id) {
-          setSourceDocId(data.source_doc_id);
-          try {
-            const doc = await getDocumentDetail(data.source_doc_id);
-            setSourceDocName(doc.title);
-            setSourceSummary(doc.summary);
-          } catch {
-            // 첨부 문서 조회 실패 시 ID만 유지
+          // 하위 호환: 구버전 응답에서 이름/요약이 없을 때만 문서 상세 재조회
+          if (!data.source_doc_name || !data.source_doc_summary) {
+            try {
+              const doc = await getDocumentDetail(data.source_doc_id);
+              setSourceDocName((prev) => prev ?? doc.title);
+              setSourceSummary((prev) => prev ?? doc.summary);
+            } catch {
+              // 첨부 문서 조회 실패 시 ID만 유지
+            }
           }
         }
       })
       .catch(() => toast.error("기안 정보를 불러오지 못했습니다."))
       .finally(() => setLoading(false));
   }, [id]);
+
+  // RAG 진입 시점에 근거를 본문으로 즉시 흡수하고, 별도 근거 연결은 만들지 않음
+  useEffect(() => {
+    if (!fromRag || id) return;
+    const block = buildRagEvidenceBlock(sourceDocName, sourceSummary);
+    if (!block) return;
+
+    setContent((prev) => {
+      if (prev.includes("[RAG 근거]")) return prev;
+      const base = prev.trimEnd();
+      return base ? `${base}\n\n${block}` : block;
+    });
+
+    // 본문에 흡수했으므로 별도 근거 카드/DB source_doc_id 연결은 제거
+    setSourceDocId(null);
+    setSourceDocName(null);
+    setSourceSummary(null);
+  }, [fromRag, id, sourceDocName, sourceSummary]);
 
   const handleSubmit = async (action: "save" | "submit") => {
     if (!title.trim()) {
@@ -159,7 +193,7 @@ export default function DraftCreation() {
 
         <main className="container mx-auto px-6 py-8 max-w-4xl space-y-6">
           {/* 첨부 근거 카드 */}
-          {sourceDocId && sourceDocName && (
+          {(sourceDocId || sourceDocName || sourceSummary) && (
             <Card className="bg-muted/30">
               <CardContent className="pt-4 pb-4">
                 <div className="flex items-center justify-between mb-2">
@@ -167,7 +201,7 @@ export default function DraftCreation() {
                     <span className="text-muted-foreground">📎 근거:</span>
                     <div className="flex items-center gap-1.5 text-foreground">
                       <FileText className="size-4" />
-                      <span className="font-medium">{sourceDocName}</span>
+                      <span className="font-medium">{sourceDocName ?? `문서 #${sourceDocId ?? "-"}`}</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-1">
@@ -198,17 +232,13 @@ export default function DraftCreation() {
                 {sourceSummary && summaryExpanded && (
                   <div className="mt-2 border-t border-border pt-3 space-y-1">
                     <p className="text-xs font-medium text-muted-foreground mb-1">요약 내용</p>
-                    <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto">
-                      {sourceSummary}
-                    </p>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-xs h-7 px-2 mt-1"
-                      onClick={() => setContent((prev) => prev ? `${prev}\n\n${sourceSummary}` : sourceSummary!)}
-                    >
-                      본문에 삽입
-                    </Button>
+                    <div className="max-h-48 overflow-y-auto rounded-md border border-border bg-muted/30 p-3">
+                      <div className="prose prose-sm max-w-none text-foreground leading-relaxed whitespace-pre-wrap">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                          {sourceSummary}
+                        </ReactMarkdown>
+                      </div>
+                    </div>
                   </div>
                 )}
               </CardContent>

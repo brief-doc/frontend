@@ -200,10 +200,16 @@ export default function DocumentSummary() {
         .then((doc) => {
           setExtractedTexts((prev) => ({ ...prev, [j.job_id]: doc.content ?? "" }));
           setSummaryTexts((prev) => ({ ...prev, [j.job_id]: doc.summary ?? "" }));
+
+          // 대시보드에서 선택 문서로 진입한 경우에도 폴링 결과로 본문/요약을 갱신한다.
+          if (selectedDocId && j.doc_id === selectedDocId) {
+            setSelectedDocContent(doc.content ?? "");
+            setSelectedDocSummary(doc.summary ?? "");
+          }
         })
         .catch(() => { });
     });
-  }, [jobs, extractedTexts, summaryTexts, currentJobId]);
+  }, [jobs, extractedTexts, summaryTexts, currentJobId, selectedDocId]);
 
   const handleUpload = useCallback(async (file: File) => {
     const lowerName = file.name.toLowerCase();
@@ -277,17 +283,21 @@ export default function DocumentSummary() {
       !!summaryTexts[j.job_id]?.trim(),
   );
 
+  const currentOriginalText = currentExtractedJob
+    ? extractedTexts[currentExtractedJob.job_id] ?? ""
+    : "";
+
+  const currentSummaryText = currentSummaryJob
+    ? summaryTexts[currentSummaryJob.job_id] ?? ""
+    : "";
+
   const displayOriginalText = selectedDocId
-    ? selectedDocContent
-    : currentExtractedJob
-      ? extractedTexts[currentExtractedJob.job_id] ?? ""
-      : "";
+    ? (selectedDocContent || currentOriginalText)
+    : currentOriginalText;
 
   const displaySummaryText = selectedDocId
-    ? selectedDocSummary
-    : currentSummaryJob
-      ? summaryTexts[currentSummaryJob.job_id] ?? ""
-      : "";
+    ? (selectedDocSummary || currentSummaryText)
+    : currentSummaryText;
 
   const hasOriginalText = !!displayOriginalText.trim();
   const hasSummaryText = !!displaySummaryText.trim();

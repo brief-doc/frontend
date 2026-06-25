@@ -11,6 +11,8 @@ export interface DraftDetail {
   draft_id: number;
   author_id: number;
   source_doc_id: number | null;
+  source_doc_name: string | null;
+  source_doc_summary: string | null;
   title: string;
   content: string;
   status: DraftStatus;
