@@ -2,30 +2,28 @@ import React from "react";
 import { useNavigate, useLocation } from "react-router";
 import {
   Home, ClipboardList, LayoutDashboard, Users,
-  FileText, LogOut, Bell
+  FileText, LogOut
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import { Button } from "./ui/button";
 import { NotificationDropdown } from "./NotificationDropdown";
-import { useNotifications } from "../hooks/useNotifications";
+import { NotificationProvider, useNotificationContext } from "../context/NotificationContext";
 import { logoutAPI } from '../api/auth';
 
-export function MainLayout({ children, currentUser }: { children: React.ReactNode; currentUser?: any }) {
+function MainLayoutInner({ children, currentUser }: { children: React.ReactNode; currentUser?: any }) {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // 1. 브라우저 세션에서 직접 현재 유저 정보 가로채기
   const rawData = sessionStorage.getItem('user_session');
   const sessionData = rawData ? JSON.parse(rawData) : null;
 
-  // 💡 [보안 방어] 세션이 없을 때 하단 UI에서 런타임 에러(TypeError)가 나는 것을 방어합니다.
   const roles: string[] = currentUser?.roles ?? sessionData?.roles ?? [];
   const userName = sessionData?.user_name ?? sessionData?.name ?? "";
 
   const isAdmin = roles.includes("관리자") || roles.includes("admin");
   const isApprover = roles.includes("결재권자") || roles.includes("approver");
 
-  const { notifications, markRead } = useNotifications();
+  const { notifications, markRead } = useNotificationContext();
   const unreadCount = notifications.filter((n) => n.unread).length;
 
   const handleLogout = async () => {
@@ -155,5 +153,13 @@ export function MainLayout({ children, currentUser }: { children: React.ReactNod
         </main>
       </div>
     </div>
+  );
+}
+
+export function MainLayout({ children, currentUser }: { children: React.ReactNode; currentUser?: any }) {
+  return (
+    <NotificationProvider>
+      <MainLayoutInner currentUser={currentUser}>{children}</MainLayoutInner>
+    </NotificationProvider>
   );
 }

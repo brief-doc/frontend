@@ -7,7 +7,6 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "../components/ui/s
 import { ArrowLeft, Send, Sparkles, Loader2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { useNotifications } from "../hooks/useNotifications";
 import { streamQuery, type RagReference } from "../api/rag";
 
 // ── 타입 ──────────────────────────────────────────────────────────────────────
@@ -111,8 +110,6 @@ export default function RagSearch() {
 
   const rawData = sessionStorage.getItem("user_session");
   const sessionData = rawData ? JSON.parse(rawData) : null;
-
-  const { notifications, markRead } = useNotifications();
 
   // 메시지 추가 시 자동 스크롤
   useEffect(() => {

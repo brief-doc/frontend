@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router";
 import { MainLayout } from "../components/MainLayout";
-import { useNotifications } from "../hooks/useNotifications";
 import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
@@ -56,8 +55,6 @@ export default function DraftView() {
       setCanceling(false);
     }
   };
-
-  const { notifications, markRead } = useNotifications();
 
   const rawData = sessionStorage.getItem("user_session");
   const sessionData = rawData ? JSON.parse(rawData) : null;
