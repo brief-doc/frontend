@@ -198,13 +198,15 @@ export default function DocumentSummary() {
   useEffect(() => {
     if (currentJobId === null) return;
 
+    // undefined 체크: 빈 문자열("")도 falsy라 무한 호출되므로 한 번이라도 fetch했으면 재호출 안 함
     const textReady = jobs.filter(
       (j) =>
         j.job_id === currentJobId &&
         !!j.doc_id &&
         j.job_status !== "failed" &&
         j.job_status !== "cancelled" &&
-        (!extractedTexts[j.job_id] || !summaryTexts[j.job_id]),
+        j.pipeline_stage !== "summarizing" &&
+        (extractedTexts[j.job_id] === undefined || summaryTexts[j.job_id] === undefined),
     );
 
     textReady.forEach((j) => {
@@ -213,7 +215,6 @@ export default function DocumentSummary() {
           setExtractedTexts((prev) => ({ ...prev, [j.job_id]: doc.content ?? "" }));
           setSummaryTexts((prev) => ({ ...prev, [j.job_id]: doc.summary ?? "" }));
 
-          // 대시보드에서 선택 문서로 진입한 경우에도 폴링 결과로 본문/요약을 갱신한다.
           if (selectedDocId && j.doc_id === selectedDocId) {
             setSelectedDocContent(doc.content ?? "");
             setSelectedDocSummary(doc.summary ?? "");
