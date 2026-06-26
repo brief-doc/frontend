@@ -13,7 +13,6 @@ import { subscribeSSE } from "../api/notification";
 import {
   uploadDocument,
   cancelJob,
-  getJob,
   listJobs,
   isActive,
   filenameFromPath,
@@ -81,13 +80,14 @@ export default function DocumentSummary() {
 
   // SSE pipeline_progress 이벤트 수신 → 해당 Job 단계 업데이트
   const handlePipelineProgress = useCallback(
-    (event: { job_id: number; stage: string }) => {
+    (event: { job_id: number; stage: string; doc_id?: number }) => {
       setJobs((prev) =>
         prev.map((j) =>
           j.job_id === event.job_id
             ? {
               ...j,
               pipeline_stage: event.stage,
+              doc_id: event.doc_id ?? j.doc_id,
               job_status:
                 event.stage === "completed"
                   ? "completed"
@@ -152,59 +152,20 @@ export default function DocumentSummary() {
       .catch(() => { });
   }, [selectedDocId]);
 
-  // SSE는 stage 중심이라 doc_id 반영이 늦을 수 있어 현재 작업 상세를 주기적으로 동기화
-  useEffect(() => {
-    if (currentJobId === null) return;
-
-    let cancelled = false;
-
-    const syncCurrentJob = async () => {
-      try {
-        const latest = await getJob(currentJobId);
-        if (cancelled) return;
-
-        setJobs((prev) => {
-          const idx = prev.findIndex((j) => j.job_id === currentJobId);
-          if (idx === -1) return [latest, ...prev];
-
-          const next = [...prev];
-          next[idx] = { ...next[idx], ...latest };
-          return next;
-        });
-
-        const done =
-          latest.job_status === "completed" ||
-          latest.job_status === "failed" ||
-          latest.job_status === "cancelled";
-
-        if (done) {
-          clearInterval(intervalId);
-        }
-      } catch {
-        // 네트워크 일시 오류는 다음 주기에 재시도
-      }
-    };
-
-    syncCurrentJob();
-    const intervalId = setInterval(syncCurrentJob, 2000);
-
-    return () => {
-      cancelled = true;
-      clearInterval(intervalId);
-    };
-  }, [currentJobId]);
 
   // OCR 이후 doc_id가 생기면 원문/요약본을 로드해 화면에 표시
   useEffect(() => {
     if (currentJobId === null) return;
 
+    // undefined 체크: 빈 문자열("")도 falsy라 무한 호출되므로 한 번이라도 fetch했으면 재호출 안 함
     const textReady = jobs.filter(
       (j) =>
         j.job_id === currentJobId &&
         !!j.doc_id &&
         j.job_status !== "failed" &&
         j.job_status !== "cancelled" &&
-        (!extractedTexts[j.job_id] || !summaryTexts[j.job_id]),
+        j.pipeline_stage !== "summarizing" &&
+        (extractedTexts[j.job_id] === undefined || summaryTexts[j.job_id] === undefined),
     );
 
     textReady.forEach((j) => {
@@ -213,7 +174,6 @@ export default function DocumentSummary() {
           setExtractedTexts((prev) => ({ ...prev, [j.job_id]: doc.content ?? "" }));
           setSummaryTexts((prev) => ({ ...prev, [j.job_id]: doc.summary ?? "" }));
 
-          // 대시보드에서 선택 문서로 진입한 경우에도 폴링 결과로 본문/요약을 갱신한다.
           if (selectedDocId && j.doc_id === selectedDocId) {
             setSelectedDocContent(doc.content ?? "");
             setSelectedDocSummary(doc.summary ?? "");
