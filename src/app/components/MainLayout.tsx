@@ -7,7 +7,7 @@ import {
 import toast, { Toaster } from "react-hot-toast";
 import { Button } from "./ui/button";
 import { NotificationDropdown } from "./NotificationDropdown";
-import { NotificationProvider, useNotificationContext } from "../context/NotificationContext";
+import { useNotificationContext } from "../context/NotificationContext";
 import { logoutAPI } from '../api/auth';
 
 function MainLayoutInner({ children, currentUser }: { children: React.ReactNode; currentUser?: any }) {
@@ -158,8 +158,6 @@ function MainLayoutInner({ children, currentUser }: { children: React.ReactNode;
 
 export function MainLayout({ children, currentUser }: { children: React.ReactNode; currentUser?: any }) {
   return (
-    <NotificationProvider>
-      <MainLayoutInner currentUser={currentUser}>{children}</MainLayoutInner>
-    </NotificationProvider>
+    <MainLayoutInner currentUser={currentUser}>{children}</MainLayoutInner>
   );
 }
