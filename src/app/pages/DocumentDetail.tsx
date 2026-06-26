@@ -166,7 +166,7 @@ export default function DocumentDetail() {
     printWindow.print();
   };
 
-  const categories = ["감사", "공모사업", "가이드라인", "기타"];
+  const categories = ["지식재산법", "행정법", "형사법", "민사법", "기타"];
 
   // 8. 예외 처리 분기 (로딩 및 미존재 대응)
   if (loading) {

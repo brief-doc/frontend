@@ -72,6 +72,7 @@ export default function DocumentSummary() {
   const [currentJobId, setCurrentJobId] = useState<number | null>(null);
   const [extractedTexts, setExtractedTexts] = useState<Record<number, string>>({});
   const [summaryTexts, setSummaryTexts] = useState<Record<number, string>>({});
+  const [streamingTokens, setStreamingTokens] = useState<Record<number, string>>({});
   const [selectedDocContent, setSelectedDocContent] = useState("");
   const [selectedDocSummary, setSelectedDocSummary] = useState("");
   const [dragging, setDragging] = useState(false);
@@ -103,11 +104,22 @@ export default function DocumentSummary() {
     [],
   );
 
+  // SSE summary_token 이벤트 수신 → 스트리밍 요약 누적
+  const handleSummaryToken = useCallback(
+    (event: { job_id: number; token: string }) => {
+      setStreamingTokens((prev) => ({
+        ...prev,
+        [event.job_id]: (prev[event.job_id] ?? "") + event.token,
+      }));
+    },
+    [],
+  );
+
   // 이 화면은 알림 목록이 필요 없고 파이프라인 진행 이벤트만 필요하므로 경량 SSE만 구독
   useEffect(() => {
-    const es = subscribeSSE(() => { }, undefined, handlePipelineProgress);
+    const es = subscribeSSE(() => { }, undefined, handlePipelineProgress, handleSummaryToken);
     return () => es.close();
-  }, [handlePipelineProgress]);
+  }, [handlePipelineProgress, handleSummaryToken]);
 
   // StaffDashboard에서 넘어온 문서(docId)는 즉시 원문/요약 조회
   useEffect(() => {
@@ -287,9 +299,14 @@ export default function DocumentSummary() {
     ? extractedTexts[currentExtractedJob.job_id] ?? ""
     : "";
 
-  const currentSummaryText = currentSummaryJob
-    ? summaryTexts[currentSummaryJob.job_id] ?? ""
-    : "";
+  const currentJob = jobs.find((j) => j.job_id === currentJobId);
+  const isStreaming = currentJob?.pipeline_stage === "summarizing" && !!streamingTokens[currentJobId ?? -1];
+
+  const currentSummaryText = isStreaming
+    ? streamingTokens[currentJobId!]
+    : currentSummaryJob
+      ? summaryTexts[currentSummaryJob.job_id] ?? ""
+      : "";
 
   const displayOriginalText = selectedDocId
     ? (selectedDocContent || currentOriginalText)
@@ -427,7 +444,12 @@ export default function DocumentSummary() {
           {hasSummaryText && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">요약본</CardTitle>
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-base">요약본</CardTitle>
+                  {isStreaming && (
+                    <span className="text-xs text-[var(--status-info)] animate-pulse">● 생성 중...</span>
+                  )}
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="bg-muted/50 border border-border rounded-lg p-5 max-h-[56vh] overflow-y-auto">
