@@ -58,11 +58,18 @@ export interface PipelineProgressEvent {
   stage: string;
 }
 
+export interface SummaryTokenEvent {
+  type: "summary_token";
+  job_id: number;
+  token: string;
+}
+
 /** SSE 구독 — EventSource 인스턴스를 반환하므로 컴포넌트 언마운트 시 .close() 필요 */
 export function subscribeSSE(
   onNotification: (noti: NotificationOut) => void,
   onConnected?: () => void,
   onPipelineProgress?: (event: PipelineProgressEvent) => void,
+  onSummaryToken?: (event: SummaryTokenEvent) => void,
 ): EventSource {
   const es = new EventSource(`${API_BASE_URL}/notifications/subscribe`, {
     withCredentials: true,
@@ -75,6 +82,8 @@ export function subscribeSSE(
         onConnected?.();
       } else if (data.type === "pipeline_progress") {
         onPipelineProgress?.(data as PipelineProgressEvent);
+      } else if (data.type === "summary_token") {
+        onSummaryToken?.(data as SummaryTokenEvent);
       } else if (data.noti_id) {
         onNotification(data as NotificationOut);
       }
