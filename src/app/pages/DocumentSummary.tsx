@@ -230,6 +230,10 @@ export default function DocumentSummary() {
     try {
       const updated = await cancelJob(jobId);
       setJobs((prev) => prev.map((j) => (j.job_id === jobId ? updated : j)));
+      setExtractedTexts((prev) => { const next = { ...prev }; delete next[jobId]; return next; });
+      setSummaryTexts((prev) => { const next = { ...prev }; delete next[jobId]; return next; });
+      setSelectedDocContent("");
+      setSelectedDocSummary("");
       toast("처리가 취소되었습니다.");
     } catch {
       toast.error("취소 요청 중 오류가 발생했습니다.");
@@ -313,7 +317,7 @@ export default function DocumentSummary() {
                 </div>
                 <div>
                   <p className="text-foreground font-medium mb-0.5">
-                    PDF를 끌어다 놓거나 파일을 선택하세요
+                    PDF, HWP, DOCX 를 끌어다 놓거나 파일을 선택하세요
                   </p>
                   <p className="text-sm text-muted-foreground">최대 100MB</p>
                 </div>
