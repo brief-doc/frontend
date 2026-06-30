@@ -82,7 +82,7 @@ export default function UserCreate() {
   return (
     <MainLayout>
       <Toaster />
-      <div className="max-w-2xl">
+      <div className="max-w-2xl p-4">
         <div className="mb-6">
           <Button
             variant="ghost"

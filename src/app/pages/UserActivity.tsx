@@ -138,7 +138,7 @@ export default function UserActivity() {
   // 🎨 핵심 UI 마크업 레이아웃
   // =========================================================================
   const MainContent = (
-    <div className="space-y-6 max-w-6xl mx-auto">
+    <div className="space-y-6 max-w-6xl mx-auto p-4">
       {/* 상단 타이틀 바 및 뒤로가기 버튼 */}
       <div className="flex items-center gap-4">
         <Button
