@@ -240,6 +240,24 @@ export default function DocumentSummary() {
     }
   };
 
+  // 처리 중이었다가 completed가 된 경우에만 문서 페이지로 자동 이동
+  const wasActiveRef = useRef<Set<number>>(new Set());
+  useEffect(() => {
+    if (currentJobId === null) return;
+    const job = jobs.find((j) => j.job_id === currentJobId);
+    if (!job || !job.doc_id) return;
+
+    if (isActive(job)) {
+      wasActiveRef.current.add(currentJobId);
+    }
+
+    if (job.pipeline_stage === "completed" && wasActiveRef.current.has(currentJobId)) {
+      toast.success("요약이 완료되었습니다!");
+      const timer = setTimeout(() => navigate(`/document/${job.doc_id}`), 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [jobs, currentJobId, navigate]);
+
   const activeJobs = jobs.filter(isActive);
   const currentActiveJob = activeJobs.find((j) => j.job_id === currentJobId);
   const currentExtractedJob = jobs.find(

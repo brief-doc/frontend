@@ -136,7 +136,7 @@ export default function AdminDashboard() {
 
   return (
     <MainLayout currentUser={me}>
-      <div className="space-y-6">
+      <div className="space-y-6 p-4">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-medium text-foreground">관리자 유저관리</h1>
         </div>

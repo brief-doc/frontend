@@ -143,8 +143,23 @@ export default function Login() {
         userId={userData?.id}
         onClose={async () => {
           setShowPasswordModal(false);
+
           const meData = await getMeAPI();
-          const roles: string[] = meData?.roles ?? [];
+
+          if (meData?.authenticated) {
+            sessionStorage.setItem("user_session", JSON.stringify({
+              name: meData.name,
+              email: meData.email,
+              id: meData.id,
+              roles: meData.roles ?? [],
+            }));
+          }
+          else {
+            setErrorMessage("로그인 후 세션을 확인할 수 없습니다.");
+          }
+
+          const roles: string[] = meData.roles ?? [];
+
           if (roles.includes("관리자")) {
             navigate("/admin/dashboard");
           } else if (roles.includes("결재권자")) {
@@ -154,7 +169,8 @@ export default function Login() {
           } else {
             navigate("/rag-search");
           }
-        }}
+        }
+        }
       />
     </div>
   );
