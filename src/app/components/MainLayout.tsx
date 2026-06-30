@@ -65,7 +65,7 @@ function MainLayoutInner({ children, currentUser }: { children: React.ReactNode;
       {/* 1. 좌측 사이드바 영역 */}
       <aside className="w-64 border-r border-border bg-card flex flex-col fixed h-screen">
         <div className="h-16 p-4 border-b border-border flex items-center justify-center">
-          <span className="font-bold text-lg text-primary tracking-tight leading-none">가명정보 가이드 시스템</span>
+          <span className="font-bold text-lg text-primary tracking-tight leading-none">BriefDoc</span>
         </div>
         <nav className="flex-1 space-y-1 px-3 py-4 overflow-y-auto">
           {menuItems.map((item, idx) => {
