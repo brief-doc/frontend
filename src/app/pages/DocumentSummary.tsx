@@ -230,11 +230,33 @@ export default function DocumentSummary() {
     try {
       const updated = await cancelJob(jobId);
       setJobs((prev) => prev.map((j) => (j.job_id === jobId ? updated : j)));
+      setExtractedTexts((prev) => { const next = { ...prev }; delete next[jobId]; return next; });
+      setSummaryTexts((prev) => { const next = { ...prev }; delete next[jobId]; return next; });
+      setSelectedDocContent("");
+      setSelectedDocSummary("");
       toast("처리가 취소되었습니다.");
     } catch {
       toast.error("취소 요청 중 오류가 발생했습니다.");
     }
   };
+
+  // 처리 중이었다가 completed가 된 경우에만 문서 페이지로 자동 이동
+  const wasActiveRef = useRef<Set<number>>(new Set());
+  useEffect(() => {
+    if (currentJobId === null) return;
+    const job = jobs.find((j) => j.job_id === currentJobId);
+    if (!job || !job.doc_id) return;
+
+    if (isActive(job)) {
+      wasActiveRef.current.add(currentJobId);
+    }
+
+    if (job.pipeline_stage === "completed" && wasActiveRef.current.has(currentJobId)) {
+      toast.success("요약이 완료되었습니다!");
+      const timer = setTimeout(() => navigate(`/document/${job.doc_id}`), 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [jobs, currentJobId, navigate]);
 
   const activeJobs = jobs.filter(isActive);
   const currentActiveJob = activeJobs.find((j) => j.job_id === currentJobId);
@@ -313,7 +335,7 @@ export default function DocumentSummary() {
                 </div>
                 <div>
                   <p className="text-foreground font-medium mb-0.5">
-                    PDF를 끌어다 놓거나 파일을 선택하세요
+                    PDF, HWP, DOCX 를 끌어다 놓거나 파일을 선택하세요
                   </p>
                   <p className="text-sm text-muted-foreground">최대 100MB</p>
                 </div>
