@@ -83,7 +83,7 @@ export default function Login() {
           </div>
           <div className="text-center space-y-2">
             <h1 className="text-2xl font-medium text-foreground">
-              가명정보 처리 자동화
+              BriefDoc
             </h1>
             <Badge
               variant="outline"
