@@ -45,6 +45,7 @@ const STAGE_LABEL: Record<string, string> = {
   embedding: "임베딩",
   summarizing: "요약",
   completed: "완료",
+  cancelled: "취소",
 };
 
 function formatDate(iso: string | null) {
@@ -87,14 +88,14 @@ export default function AdminDocuments() {
         const data = res.data;
         const filtered = keyword
           ? data.items.filter(
-              (j: JobItem) =>
-                j.file_name?.includes(keyword) || j.user_name?.includes(keyword)
-            )
+            (j: JobItem) =>
+              j.file_name?.includes(keyword) || j.user_name?.includes(keyword)
+          )
           : data.items;
         setJobs(filtered);
         setTotal(data.total);
       })
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setLoading(false));
   }, [statusFilter, page, keyword]);
 
@@ -174,9 +175,8 @@ export default function AdminDocuments() {
                           <>
                             <tr
                               key={job.job_id}
-                              className={`border-b border-border transition-colors cursor-pointer hover:bg-muted/30 ${
-                                isFailed ? "bg-destructive/5" : ""
-                              }`}
+                              className={`border-b border-border transition-colors cursor-pointer hover:bg-muted/30 ${isFailed ? "bg-destructive/5" : ""
+                                }`}
                               onClick={() => {
                                 if (isFailed) setExpandedId(expanded ? null : job.job_id);
                                 else if (job.doc_id) navigate(`/document/${job.doc_id}`);
